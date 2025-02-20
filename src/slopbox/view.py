@@ -1,6 +1,6 @@
 import os
 from contextlib import contextmanager
-from typing import List, Tuple, Optional
+from typing import List, Optional, Tuple
 
 from tagflow import attr, tag, text
 
@@ -48,27 +48,39 @@ def flex_col():
 def render_prompt_pills(image: Image):
     """Render the prompt pills for an image."""
     with tag.div(
-        classes="flex flex-col gap-2 p-2 bg-neutral-100 flex-1 min-w-[300px]",
+        classes=[
+            "flex flex-col",
+            "gap-2 p-2",
+            "bg-neutral-100",
+            "flex-1 min-w-[300px]",
+        ],
     ):
         # Prompt
-        with tag.div(classes="flex flex-wrap gap-2"):
+        with tag.div(classes=["flex flex-wrap", "gap-2"]):
             for part in split_prompt(image.spec.prompt):
-                with tag.span(classes="bg-neutral-200 px-2 py-1 rounded text-sm"):
+                with tag.span(
+                    classes=["bg-neutral-200", "px-2 py-1", "rounded", "text-sm"]
+                ):
                     text(part)
 
         # Model and aspect ratio info
-        with tag.div(classes="flex gap-4 text-xs text-neutral-500 mt-2"):
+        with tag.div(classes=["flex gap-4", "text-xs text-neutral-500", "mt-2"]):
             with tag.span():
                 text(f"Model: {image.spec.model}")
             with tag.span():
                 text(f"Aspect: {image.spec.aspect_ratio}")
 
         # Action buttons
-        with tag.div(classes="flex gap-2 mt-2"):
+        with tag.div(classes=["flex gap-2", "mt-2"]):
             with tag.button(
                 hx_post=f"/copy-prompt/{image.uuid}",
                 hx_target="#prompt-container",
-                classes="text-xs px-2 py-1 bg-neutral-200 hover:bg-neutral-300 rounded",
+                classes=[
+                    "text-xs",
+                    "px-2 py-1",
+                    "bg-neutral-200 hover:bg-neutral-300",
+                    "rounded",
+                ],
             ):
                 text("Copy Prompt")
 
@@ -77,7 +89,12 @@ def render_prompt_pills(image: Image):
                 hx_post=f"/regenerate/{image.spec.id}",
                 hx_target="#image-container",
                 hx_swap="afterbegin settle:0.5s",
-                classes="text-xs px-2 py-1 bg-neutral-200 hover:bg-neutral-300 rounded",
+                classes=[
+                    "text-xs",
+                    "px-2 py-1",
+                    "bg-neutral-200 hover:bg-neutral-300",
+                    "rounded",
+                ],
             ):
                 text("Regenerate")
 
@@ -138,32 +155,52 @@ def render_single_image(image: Image):
 def render_spec_header(spec: ImageSpec):
     """Render the header for a spec showing prompt and generation options."""
     with tag.div(
-        classes="w-2xl shrink-0 bg-neutral-200 p-2 border-neutral-400 relative"
+        classes=[
+            "w-2xl shrink-0",
+            "bg-neutral-200 p-2",
+            "border-neutral-400",
+            "relative",
+        ]
     ):
         # Actions
-        with tag.div(classes="flex gap-2 mb-2 justify-between"):
-            with tag.div(classes="flex gap-2"):
+        with tag.div(classes=["flex gap-2", "mb-2", "justify-between"]):
+            with tag.div(classes=["flex gap-2"]):
                 with tag.button(
                     hx_post=f"/copy-spec/{spec.id}",
                     hx_target="#prompt-container",
-                    classes="text-xs px-3 py-1 bg-neutral-100 hover:bg-neutral-200 border border-neutral-400",
+                    classes=[
+                        "text-xs",
+                        "px-3 py-1",
+                        "bg-neutral-100 hover:bg-neutral-200",
+                        "border border-neutral-400",
+                    ],
                 ):
                     text("Copy Settings")
                 with tag.button(
                     hx_post=f"/regenerate/{spec.id}",
                     hx_target=f"#spec-images-{spec.id}",
                     hx_swap="afterbegin settle:0.5s",
-                    classes="text-xs px-3 py-1 bg-neutral-100 hover:bg-neutral-200 border border-neutral-400",
+                    classes=[
+                        "text-xs",
+                        "px-3 py-1",
+                        "bg-neutral-100 hover:bg-neutral-200",
+                        "border border-neutral-400",
+                    ],
                 ):
                     text("Generate New")
                 with tag.a(
                     href=f"/slideshow?spec_id={spec.id}",
-                    classes="text-xs px-3 py-1 bg-neutral-100 hover:bg-neutral-200 border border-neutral-400",
+                    classes=[
+                        "text-xs",
+                        "px-3 py-1",
+                        "bg-neutral-100 hover:bg-neutral-200",
+                        "border border-neutral-400",
+                    ],
                 ):
                     text("Slideshow")
 
             # Model and settings
-            with tag.div(classes="flex gap-4 text-neutral-600 items-baseline"):
+            with tag.div(classes=["flex gap-4", "text-neutral-600", "items-baseline"]):
                 with tag.span():
                     text(spec.model)
                 with tag.span():
@@ -172,10 +209,16 @@ def render_spec_header(spec: ImageSpec):
                     text(f"#{spec.id}")
 
         # Prompt display
-        with tag.div(classes="flex flex-wrap gap-2"):
+        with tag.div(classes=["flex flex-wrap", "gap-2"]):
             for part in split_prompt(spec.prompt):
                 with tag.span(
-                    classes="bg-neutral-100 px-3 py-1 rounded-md text-sm border-l-4 border-b border-r border-neutral-400 text-neutral-800"
+                    classes=[
+                        "bg-neutral-100",
+                        "px-3 py-1",
+                        "rounded-md text-sm",
+                        "border-l-4 border-b border-r border-neutral-400",
+                        "text-neutral-800",
+                    ]
                 ):
                     text(part)
 
@@ -184,8 +227,11 @@ def render_spec_images(spec: ImageSpec, images: List[Image]):
     """Render the image grid for a spec."""
     with tag.div(
         id=f"spec-images-{spec.id}",
-        # classes="flex flex-wrap gap-4 p-4 bg-neutral-100 border-r border-b border-neutral-500",
-        classes="flex flex-wrap gap-4 px-4",
+        classes=[
+            "flex flex-wrap",
+            "gap-4",
+            "px-4",
+        ],
     ):
         for image in images:
             render_image_or_status(image)
@@ -209,17 +255,29 @@ def generate_gallery(
     """Generate the HTML for the image gallery."""
     with tag.div(
         id="gallery-container",
-        classes="h-full overflow-y-auto flex-1 flex flex-col items-stretch p-4 gap-8",
+        classes=[
+            "h-full overflow-y-auto",
+            "flex-1",
+            "flex flex-col",
+            "items-stretch",
+            "p-4 gap-8",
+        ],
     ):
         # Sort and filter controls
         with tag.div(
-            classes="flex justify-between items-center mb-4 bg-neutral-200 p-4 rounded-lg"
+            classes=[
+                "flex justify-between",
+                "items-center",
+                "mb-4",
+                "bg-neutral-200",
+                "p-4 rounded-lg",
+            ]
         ):
             # Sort controls
-            with tag.div(classes="flex items-center gap-4"):
-                with tag.span(classes="text-sm font-medium"):
+            with tag.div(classes=["flex items-center", "gap-4"]):
+                with tag.span(classes=["text-sm", "font-medium"]):
                     text("Sort by:")
-                with tag.div(classes="flex gap-2"):
+                with tag.div(classes=["flex gap-2"]):
                     for sort_option in [
                         ("recency", "Most Recent"),
                         ("image_count", "Most Images"),
@@ -228,22 +286,32 @@ def generate_gallery(
                             href=f"/gallery?page=1&sort_by={sort_option[0]}&min_images={min_images}&liked_only={str(liked_only).lower()}",
                             hx_get=f"/gallery?page=1&sort_by={sort_option[0]}&min_images={min_images}&liked_only={str(liked_only).lower()}",
                             hx_target="#gallery-container",
-                            classes=f"text-xs px-3 py-1 rounded {'bg-neutral-600 text-white' if sort_by == sort_option[0] else 'bg-neutral-100 hover:bg-neutral-300'}",
+                            classes=[
+                                "text-xs",
+                                "px-3 py-1",
+                                "rounded",
+                                f"{'bg-neutral-600 text-white' if sort_by == sort_option[0] else 'bg-neutral-100 hover:bg-neutral-300'}",
+                            ],
                         ):
                             text(sort_option[1])
 
             # Filter controls
-            with tag.div(classes="flex items-center gap-4"):
-                with tag.span(classes="text-sm font-medium"):
+            with tag.div(classes=["flex items-center", "gap-4"]):
+                with tag.span(classes=["text-sm", "font-medium"]):
                     text("Filter:")
-                with tag.div(classes="flex gap-2"):
+                with tag.div(classes=["flex gap-2"]):
                     # Image count filter
                     for count in [0, 2, 4, 8]:
                         with tag.a(
                             href=f"/gallery?page=1&sort_by={sort_by}&min_images={count}&liked_only={str(liked_only).lower()}",
                             hx_get=f"/gallery?page=1&sort_by={sort_by}&min_images={count}&liked_only={str(liked_only).lower()}",
                             hx_target="#gallery-container",
-                            classes=f"text-xs px-3 py-1 rounded {'bg-neutral-600 text-white' if min_images == count else 'bg-neutral-100 hover:bg-neutral-300'}",
+                            classes=[
+                                "text-xs",
+                                "px-3 py-1",
+                                "rounded",
+                                f"{'bg-neutral-600 text-white' if min_images == count else 'bg-neutral-100 hover:bg-neutral-300'}",
+                            ],
                         ):
                             text("All" if count == 0 else f"{count}+ images")
 
@@ -252,7 +320,13 @@ def generate_gallery(
                         href=f"/gallery?page=1&sort_by={sort_by}&min_images={min_images}&liked_only=true",
                         hx_get=f"/gallery?page=1&sort_by={sort_by}&min_images={min_images}&liked_only=true",
                         hx_target="#gallery-container",
-                        classes=f"text-xs px-3 py-1 rounded {'bg-amber-600 text-white' if liked_only else 'bg-amber-100 hover:bg-amber-200'} flex items-center gap-1",
+                        classes=[
+                            "text-xs",
+                            "px-3 py-1",
+                            "rounded",
+                            "flex items-center gap-1",
+                            f"{'bg-amber-600 text-white' if liked_only else 'bg-amber-100 hover:bg-amber-200'}",
+                        ],
                     ):
                         with tag.span(classes="text-sm"):
                             text("♥")
@@ -261,7 +335,13 @@ def generate_gallery(
                     # Liked slideshow link
                     with tag.a(
                         href="/slideshow/liked",
-                        classes="text-xs px-3 py-1 bg-amber-100 hover:bg-amber-200 rounded flex items-center gap-1",
+                        classes=[
+                            "text-xs",
+                            "px-3 py-1",
+                            "bg-amber-100 hover:bg-amber-200",
+                            "rounded",
+                            "flex items-center gap-1",
+                        ],
                     ):
                         with tag.span(classes="text-sm"):
                             text("♥")
@@ -429,7 +509,13 @@ def render_prompt_form(prompt: str = None, model: str = None, aspect_ratio: str 
     """Render the prompt form with generation options and modification form."""
     with tag.div(
         id="prompt-container",
-        classes="flex flex-col gap-4 p-2 bg-neutral-200 border-1 border-neutral-500 shadow-xl",
+        classes=[
+            "flex flex-col",
+            "gap-4 p-2",
+            "bg-neutral-200",
+            "border-1 border-neutral-500",
+            "shadow-xl",
+        ],
     ):
         # Main generation form
         with tag.form(
@@ -437,7 +523,7 @@ def render_prompt_form(prompt: str = None, model: str = None, aspect_ratio: str 
             hx_target="#gallery-container",
             hx_swap="afterbegin settle:0.5s",
             hx_disabled_elt="input, button, select",
-            classes="flex flex-col gap-4 w-full",
+            classes=["flex flex-col", "gap-4", "w-full"],
         ):
             render_generation_options(model, aspect_ratio)
             render_prompt_inputs(prompt)
@@ -603,7 +689,13 @@ def render_slideshow(
     """Render the slideshow view with a single image and auto-refresh."""
     with tag.div(
         id="slideshow-container",
-        classes="h-screen w-screen flex flex-col items-center justify-center relative bg-stone-900",
+        classes=[
+            "h-screen w-screen",
+            "flex flex-col",
+            "items-center justify-center",
+            "relative",
+            "bg-stone-900",
+        ],
     ):
         render_slideshow_content(image, image_count, spec_id)
 
@@ -620,7 +712,11 @@ def render_slideshow_content(
 
     with tag.div(
         id="slideshow-content",
-        classes="flex flex-col items-center justify-center relative",
+        classes=[
+            "flex flex-col",
+            "items-center justify-center",
+            "relative",
+        ],
         hx_get=next_url,
         hx_target="#slideshow-content",
         hx_swap="outerHTML transition:true",
@@ -628,13 +724,18 @@ def render_slideshow_content(
     ):
         if image and image.status == "complete" and image.filepath:
             with tag.div(
-                classes="image-container bg-white rounded-lg shadow-2xl shadow-neutral-700",
+                classes=[
+                    "image-container",
+                    "bg-white",
+                    "rounded-lg",
+                    "shadow-2xl shadow-neutral-700",
+                ],
             ):
                 # Image with padding
                 with tag.img(
                     src=f"/images/{os.path.basename(image.filepath)}",
                     alt=image.spec.prompt,
-                    classes="object-contain h-screen",
+                    classes=["object-contain", "h-screen"],
                 ):
                     pass
 
@@ -645,19 +746,38 @@ def render_slideshow_content(
 
 def display_image_info(image, image_count):
     with tag.div(
-        classes="w-xl border-t border-neutral-100 bg-white px-4 py-3 self-start",
+        classes=[
+            "w-xl",
+            "border-t border-neutral-100",
+            "bg-white",
+            "px-4 py-3",
+            "self-start",
+        ],
     ):
         # Prompt pills
-        with tag.div(classes="flex flex-wrap gap-1 mb-2"):
+        with tag.div(classes=["flex flex-wrap", "gap-1", "mb-2"]):
             for part in split_prompt(image.spec.prompt):
                 with tag.span(
-                    classes="inline-block bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600 border border-neutral-200 rounded"
+                    classes=[
+                        "inline-block",
+                        "bg-neutral-100",
+                        "px-2 py-0.5",
+                        "text-xs text-neutral-600",
+                        "border border-neutral-200",
+                        "rounded",
+                    ]
                 ):
                     text(part)
 
                 # Technical details
         with tag.div(
-            classes="flex flex-wrap items-center gap-x-2 text-[10px] text-neutral-400 font-mono"
+            classes=[
+                "flex flex-wrap",
+                "items-center",
+                "gap-x-2",
+                "text-[10px] text-neutral-400",
+                "font-mono",
+            ]
         ):
             with tag.span(classes="text-neutral-500"):
                 text(image.spec.model.split("/")[-1])
