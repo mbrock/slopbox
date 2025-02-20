@@ -164,42 +164,8 @@ def render_spec_header(spec: ImageSpec):
     ):
         # Actions
         with tag.div(classes=["flex gap-2", "mb-2", "justify-between"]):
-            with tag.div(classes=["flex gap-2"]):
-                with tag.button(
-                    hx_post=f"/copy-spec/{spec.id}",
-                    hx_target="#prompt-container",
-                    classes=[
-                        "text-xs",
-                        "px-3 py-1",
-                        "bg-neutral-100 hover:bg-neutral-200",
-                        "border border-neutral-400",
-                    ],
-                ):
-                    text("Copy Settings")
-                with tag.button(
-                    hx_post=f"/regenerate/{spec.id}",
-                    hx_target=f"#spec-images-{spec.id}",
-                    hx_swap="afterbegin settle:0.5s",
-                    classes=[
-                        "text-xs",
-                        "px-3 py-1",
-                        "bg-neutral-100 hover:bg-neutral-200",
-                        "border border-neutral-400",
-                    ],
-                ):
-                    text("Generate New")
-                with tag.a(
-                    href=f"/slideshow?spec_id={spec.id}",
-                    classes=[
-                        "text-xs",
-                        "px-3 py-1",
-                        "bg-neutral-100 hover:bg-neutral-200",
-                        "border border-neutral-400",
-                    ],
-                ):
-                    text("Slideshow")
+            render_spec_action_buttons(spec)
 
-            # Model and settings
             with tag.div(classes=["flex gap-4", "text-neutral-600", "items-baseline"]):
                 with tag.span():
                     text(spec.model)
@@ -221,6 +187,45 @@ def render_spec_header(spec: ImageSpec):
                     ]
                 ):
                     text(part)
+
+
+def render_spec_action_buttons(spec):
+    with tag.div(classes=["flex gap-2"]):
+        with tag.button(
+            hx_post=f"/copy-spec/{spec.id}",
+            hx_target="#prompt-container",
+            classes=[
+                "text-xs",
+                "px-3 py-1",
+                "bg-neutral-100 hover:bg-neutral-200",
+                "border border-neutral-400",
+            ],
+        ):
+            text("Copy Settings")
+
+        with tag.button(
+            hx_post=f"/regenerate/{spec.id}",
+            hx_target=f"#spec-images-{spec.id}",
+            hx_swap="afterbegin settle:0.5s",
+            classes=[
+                "text-xs",
+                "px-3 py-1",
+                "bg-neutral-100 hover:bg-neutral-200",
+                "border border-neutral-400",
+            ],
+        ):
+            text("Generate New")
+
+        with tag.a(
+            href=f"/slideshow?spec_id={spec.id}",
+            classes=[
+                "text-xs",
+                "px-3 py-1",
+                "bg-neutral-100 hover:bg-neutral-200",
+                "border border-neutral-400",
+            ],
+        ):
+            text("Slideshow")
 
 
 def render_spec_images(spec: ImageSpec, images: List[Image]):
@@ -263,118 +268,135 @@ def generate_gallery(
             "p-4 gap-8",
         ],
     ):
-        # Sort and filter controls
-        with tag.div(
-            classes=[
-                "flex justify-between",
-                "items-center",
-                "mb-4",
-                "bg-neutral-200",
-                "p-4 rounded-lg",
-            ]
-        ):
-            # Sort controls
-            with tag.div(classes=["flex items-center", "gap-4"]):
-                with tag.span(classes=["text-sm", "font-medium"]):
-                    text("Sort by:")
-                with tag.div(classes=["flex gap-2"]):
-                    for sort_option in [
-                        ("recency", "Most Recent"),
-                        ("image_count", "Most Images"),
-                    ]:
-                        with tag.a(
-                            href=f"/gallery?page=1&sort_by={sort_option[0]}&min_images={min_images}&liked_only={str(liked_only).lower()}",
-                            hx_get=f"/gallery?page=1&sort_by={sort_option[0]}&min_images={min_images}&liked_only={str(liked_only).lower()}",
-                            hx_target="#gallery-container",
-                            classes=[
-                                "text-xs",
-                                "px-3 py-1",
-                                "rounded",
-                                f"{'bg-neutral-600 text-white' if sort_by == sort_option[0] else 'bg-neutral-100 hover:bg-neutral-300'}",
-                            ],
-                        ):
-                            text(sort_option[1])
+        render_gallery_controls(sort_by, min_images, liked_only)
+        render_pagination_controls(
+            current_page, total_pages, sort_by, min_images, liked_only
+        )
 
-            # Filter controls
-            with tag.div(classes=["flex items-center", "gap-4"]):
-                with tag.span(classes=["text-sm", "font-medium"]):
-                    text("Filter:")
-                with tag.div(classes=["flex gap-2"]):
-                    # Image count filter
-                    for count in [0, 2, 4, 8]:
-                        with tag.a(
-                            href=f"/gallery?page=1&sort_by={sort_by}&min_images={count}&liked_only={str(liked_only).lower()}",
-                            hx_get=f"/gallery?page=1&sort_by={sort_by}&min_images={count}&liked_only={str(liked_only).lower()}",
-                            hx_target="#gallery-container",
-                            classes=[
-                                "text-xs",
-                                "px-3 py-1",
-                                "rounded",
-                                f"{'bg-neutral-600 text-white' if min_images == count else 'bg-neutral-100 hover:bg-neutral-300'}",
-                            ],
-                        ):
-                            text("All" if count == 0 else f"{count}+ images")
-
-                    # Likes filter
-                    with tag.a(
-                        href=f"/gallery?page=1&sort_by={sort_by}&min_images={min_images}&liked_only=true",
-                        hx_get=f"/gallery?page=1&sort_by={sort_by}&min_images={min_images}&liked_only=true",
-                        hx_target="#gallery-container",
-                        classes=[
-                            "text-xs",
-                            "px-3 py-1",
-                            "rounded",
-                            "flex items-center gap-1",
-                            f"{'bg-amber-600 text-white' if liked_only else 'bg-amber-100 hover:bg-amber-200'}",
-                        ],
-                    ):
-                        with tag.span(classes="text-sm"):
-                            text("♥")
-                        text("Liked")
-
-                    # Liked slideshow link
-                    with tag.a(
-                        href="/slideshow/liked",
-                        classes=[
-                            "text-xs",
-                            "px-3 py-1",
-                            "bg-amber-100 hover:bg-amber-200",
-                            "rounded",
-                            "flex items-center gap-1",
-                        ],
-                    ):
-                        with tag.span(classes="text-sm"):
-                            text("♥")
-                        text("Slideshow")
-
-        # Pagination controls
-        if total_pages > 1:
-            with tag.div(classes="flex justify-end gap-4"):
-                # Previous page button
-                if current_page > 1:
-                    with tag.button(
-                        hx_get=f"/gallery?page={current_page - 1}&sort_by={sort_by}&min_images={min_images}&liked_only={str(liked_only).lower()}",
-                        hx_target="#gallery-container",
-                        classes="px-4 bg-white hover:bg-neutral-100 rounded shadow",
-                    ):
-                        text("Previous")
-
-                # Page indicator
-                with tag.span(classes="text-neutral-700"):
-                    text(f"Page {current_page} of {total_pages}")
-
-                # Next page button
-                if current_page < total_pages:
-                    with tag.button(
-                        hx_get=f"/gallery?page={current_page + 1}&sort_by={sort_by}&min_images={min_images}&liked_only={str(liked_only).lower()}",
-                        hx_target="#gallery-container",
-                        classes="px-4 bg-white hover:bg-neutral-100 rounded shadow",
-                    ):
-                        text("Next")
-
-        # Specs and their images
         for spec, images in specs_with_images:
             render_spec_block(spec, images)
+
+
+def render_pagination_controls(
+    current_page, total_pages, sort_by, min_images, liked_only
+):
+    if total_pages > 1:
+        with tag.div(classes="flex justify-end gap-4"):
+            if current_page > 1:
+                with tag.button(
+                    hx_get=f"/gallery?page={current_page - 1}&sort_by={sort_by}&min_images={min_images}&liked_only={str(liked_only).lower()}",
+                    hx_target="#gallery-container",
+                    classes="px-4 bg-white hover:bg-neutral-100 rounded shadow",
+                ):
+                    text("Previous")
+
+            with tag.span(classes="text-neutral-700"):
+                text(f"Page {current_page} of {total_pages}")
+
+            if current_page < total_pages:
+                with tag.button(
+                    hx_get=f"/gallery?page={current_page + 1}&sort_by={sort_by}&min_images={min_images}&liked_only={str(liked_only).lower()}",
+                    hx_target="#gallery-container",
+                    classes="px-4 bg-white hover:bg-neutral-100 rounded shadow",
+                ):
+                    text("Next")
+
+
+def render_gallery_controls(sort_by, min_images, liked_only):
+    with tag.div(
+        classes=[
+            "flex justify-between",
+            "items-center",
+            "mb-4",
+            "bg-neutral-200",
+            "p-4 rounded-lg",
+        ]
+    ):
+        render_sort_options(sort_by, min_images, liked_only)
+        render_image_filters(sort_by, min_images, liked_only)
+
+
+def render_image_filters(sort_by, min_images, liked_only):
+    with tag.div(classes=["flex items-center", "gap-4"]):
+        with tag.span(classes=["text-sm", "font-medium"]):
+            text("Filter:")
+        with tag.div(classes=["flex gap-2"]):
+            render_image_count_filters(sort_by, min_images, liked_only)
+            render_liked_filter(sort_by, min_images, liked_only)
+            render_slideshow_link()
+
+
+def render_slideshow_link():
+    with tag.a(
+        href="/slideshow/liked",
+        classes=[
+            "text-xs",
+            "px-3 py-1",
+            "bg-amber-100 hover:bg-amber-200",
+            "rounded",
+            "flex items-center gap-1",
+        ],
+    ):
+        with tag.span(classes="text-sm"):
+            text("♥")
+        text("Slideshow")
+
+
+def render_liked_filter(sort_by, min_images, liked_only):
+    with tag.a(
+        href=f"/gallery?page=1&sort_by={sort_by}&min_images={min_images}&liked_only=true",
+        hx_get=f"/gallery?page=1&sort_by={sort_by}&min_images={min_images}&liked_only=true",
+        hx_target="#gallery-container",
+        classes=[
+            "text-xs",
+            "px-3 py-1",
+            "rounded",
+            "flex items-center gap-1",
+            f"{'bg-amber-600 text-white' if liked_only else 'bg-amber-100 hover:bg-amber-200'}",
+        ],
+    ):
+        with tag.span(classes="text-sm"):
+            text("♥")
+        text("Liked")
+
+
+def render_image_count_filters(sort_by, min_images, liked_only):
+    for count in [0, 2, 4, 8]:
+        with tag.a(
+            href=f"/gallery?page=1&sort_by={sort_by}&min_images={count}&liked_only={str(liked_only).lower()}",
+            hx_get=f"/gallery?page=1&sort_by={sort_by}&min_images={count}&liked_only={str(liked_only).lower()}",
+            hx_target="#gallery-container",
+            classes=[
+                "text-xs",
+                "px-3 py-1",
+                "rounded",
+                f"{'bg-neutral-600 text-white' if min_images == count else 'bg-neutral-100 hover:bg-neutral-300'}",
+            ],
+        ):
+            text("All" if count == 0 else f"{count}+ images")
+
+
+def render_sort_options(sort_by, min_images, liked_only):
+    with tag.div(classes=["flex items-center", "gap-4"]):
+        with tag.span(classes=["text-sm", "font-medium"]):
+            text("Sort by:")
+        with tag.div(classes=["flex gap-2"]):
+            for sort_option in [
+                ("recency", "Most Recent"),
+                ("image_count", "Most Images"),
+            ]:
+                with tag.a(
+                    href=f"/gallery?page=1&sort_by={sort_option[0]}&min_images={min_images}&liked_only={str(liked_only).lower()}",
+                    hx_get=f"/gallery?page=1&sort_by={sort_option[0]}&min_images={min_images}&liked_only={str(liked_only).lower()}",
+                    hx_target="#gallery-container",
+                    classes=[
+                        "text-xs",
+                        "px-3 py-1",
+                        "rounded",
+                        f"{'bg-neutral-600 text-white' if sort_by == sort_option[0] else 'bg-neutral-100 hover:bg-neutral-300'}",
+                    ],
+                ):
+                    text(sort_option[1])
 
 
 def render_prompt_inputs(prompt):
@@ -421,64 +443,69 @@ def render_prompt_inputs(prompt):
 
 def render_generation_options(model: str = None, aspect_ratio: str = None):
     with tag.div(classes="flex flex-col gap-4 py-2 px-4"):
-        # Model selection
-        with tag.div(classes="flex flex-col gap-1"):
-            with tag.label(classes="text-sm font-medium"):
-                text("Model")
-            with tag.div(classes="flex flex-wrap gap-4"):
-                for model_name, model_id in MODELS.items():
-                    with tag.label(classes="flex items-center gap-2 text-xs"):
-                        with tag.input(
-                            type="radio",
-                            name="model",
-                            value=model_id,
-                            checked=(
-                                model_id == model
-                                if model
-                                else model_id == MODELS["Flux 1.1 Pro Ultra"]
-                            ),
-                            classes="w-4 h-4",
-                        ):
-                            pass
-                        text(model_name)
+        render_model_selection(model)
+        render_aspect_ratio_selection(aspect_ratio)
+        render_style_selection()
 
-        # Aspect ratio selection
-        with tag.div(classes="flex flex-col gap-1"):
-            with tag.label(classes="text-sm font-medium"):
-                text("Aspect Ratio")
-            with tag.div(classes="flex flex-wrap gap-4"):
-                for ratio in ASPECT_TO_RECRAFT.keys():
-                    with tag.label(classes="flex items-center gap-2 text-xs"):
-                        with tag.input(
-                            type="radio",
-                            name="aspect_ratio",
-                            value=ratio,
-                            checked=(
-                                ratio == aspect_ratio
-                                if aspect_ratio
-                                else ratio == "1:1"
-                            ),
-                            classes="w-4 h-4",
-                        ):
-                            pass
-                        text(ratio)
 
-        # Style selection
-        with tag.div(classes="flex flex-col gap-1"):
-            with tag.label(classes="text-sm font-medium"):
-                text("Style")
-            with tag.div(classes="flex gap-4"):
-                for style in ["natural", "studio", "illustration", "flash"]:
-                    with tag.label(classes="flex items-center gap-2 text-xs"):
-                        with tag.input(
-                            type="radio",
-                            name="style",
-                            value=style,
-                            checked=(style == "natural"),
-                            classes="w-4 h-4",
-                        ):
-                            pass
-                        text(style.capitalize())
+def render_style_selection():
+    with tag.div(classes="flex flex-col gap-1"):
+        with tag.label(classes="text-sm font-medium"):
+            text("Style")
+        with tag.div(classes="flex gap-4"):
+            for style in ["natural", "studio", "illustration", "flash"]:
+                with tag.label(classes="flex items-center gap-2 text-xs"):
+                    with tag.input(
+                        type="radio",
+                        name="style",
+                        value=style,
+                        checked=(style == "natural"),
+                        classes="w-4 h-4",
+                    ):
+                        pass
+                    text(style.capitalize())
+
+
+def render_aspect_ratio_selection(aspect_ratio):
+    with tag.div(classes="flex flex-col gap-1"):
+        with tag.label(classes="text-sm font-medium"):
+            text("Aspect Ratio")
+        with tag.div(classes="flex flex-wrap gap-4"):
+            for ratio in ASPECT_TO_RECRAFT.keys():
+                with tag.label(classes="flex items-center gap-2 text-xs"):
+                    with tag.input(
+                        type="radio",
+                        name="aspect_ratio",
+                        value=ratio,
+                        checked=(
+                            ratio == aspect_ratio if aspect_ratio else ratio == "1:1"
+                        ),
+                        classes="w-4 h-4",
+                    ):
+                        pass
+                    text(ratio)
+
+
+def render_model_selection(model):
+    with tag.div(classes="flex flex-col gap-1"):
+        with tag.label(classes="text-sm font-medium"):
+            text("Model")
+        with tag.div(classes="flex flex-wrap gap-4"):
+            for model_name, model_id in MODELS.items():
+                with tag.label(classes="flex items-center gap-2 text-xs"):
+                    with tag.input(
+                        type="radio",
+                        name="model",
+                        value=model_id,
+                        checked=(
+                            model_id == model
+                            if model
+                            else model_id == MODELS["Flux 1.1 Pro Ultra"]
+                        ),
+                        classes="w-4 h-4",
+                    ):
+                        pass
+                    text(model_name)
 
 
 def render_prompt_modification_form():
@@ -545,137 +572,7 @@ def render_base_layout():
     with tag.html(lang="en"):
         with tag.head():
             with tag.title():
-                text("Yap")
-            # Add view transition and animation styles
-            with tag.style():
-                text("""
-                    @keyframes fade-in {
-                        from { opacity: 0; }
-                    }
-
-                    @keyframes fade-out {
-                        to { opacity: 0; }
-                    }
-
-                    @keyframes slide-from-right {
-                        from { transform: translateX(100%); }
-                    }
-
-                    @keyframes slide-to-left {
-                        to { transform: translateX(-100%); }
-                    }
-
-                    @keyframes float {
-                        0% {
-                            transform:
-                                translateY(0)
-                                rotate(var(--rotation))
-                                perspective(1000px)
-                                rotateX(0deg)
-                                rotateY(0deg);
-                        }
-                        25% {
-                            transform:
-                                translateY(-8px)
-                                rotate(calc(var(--rotation) - 0.5deg))
-                                perspective(1000px)
-                                rotateX(1deg)
-                                rotateY(-1deg);
-                        }
-                        50% {
-                            transform:
-                                translateY(-12px)
-                                rotate(var(--rotation))
-                                perspective(1000px)
-                                rotateX(0deg)
-                                rotateY(1deg);
-                        }
-                        75% {
-                            transform:
-                                translateY(-4px)
-                                rotate(calc(var(--rotation) + 0.5deg))
-                                perspective(1000px)
-                                rotateX(-1deg)
-                                rotateY(0deg);
-                        }
-                        100% {
-                            transform:
-                                translateY(0)
-                                rotate(var(--rotation))
-                                perspective(1000px)
-                                rotateX(0deg)
-                                rotateY(0deg);
-                        }
-                    }
-
-                    @keyframes shine-wave {
-                        0% {
-                            opacity: 0;
-                            transform:
-                                translateX(-100%)
-                                translateY(0%)
-                                rotate(45deg)
-                                scaleY(1);
-                        }
-                        10% {
-                            opacity: 0.3;
-                        }
-                        40% {
-                            opacity: 0.5;
-                            transform:
-                                translateX(0%)
-                                translateY(-20%)
-                                rotate(45deg)
-                                scaleY(1.2);
-                        }
-                        50% {
-                            opacity: 0.7;
-                            transform:
-                                translateX(50%)
-                                translateY(0%)
-                                rotate(45deg)
-                                scaleY(1);
-                        }
-                        60% {
-                            opacity: 0.5;
-                            transform:
-                                translateX(100%)
-                                translateY(20%)
-                                rotate(45deg)
-                                scaleY(0.8);
-                        }
-                        90% {
-                            opacity: 0.3;
-                        }
-                        100% {
-                            opacity: 0;
-                            transform:
-                                translateX(150%)
-                                translateY(0%)
-                                rotate(45deg)
-                                scaleY(1);
-                        }
-                    }
-
-/*                    ::view-transition-old(image-view),
-                    ::view-transition-new(image-view) {
-                        animation: none;
-                        mix-blend-mode: normal;
-                        height: 100%;
-                        width: 100%;
-                    } */
-
-                    .image-container {
-                        /* view-transition-name: image-view; */
-                        position: relative;
-                        overflow: hidden;
-                        animation: float 20s ease-in-out infinite;
-                        transform-style: preserve-3d;
-                        will-change: transform;
-                    }
-
-
-                """)
+                text("Slopbox")
             add_external_scripts()
         with tag.body(classes="bg-neutral-400 flex gap-4 h-screen"):
             yield
