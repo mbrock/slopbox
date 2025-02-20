@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from typing import List, Optional, Tuple
+import re
 
 from yap.base import conn
 
@@ -61,9 +62,12 @@ class Image:
     status: str
     created: datetime
     spec: Optional[ImageSpec] = None
+    liked: bool = False
 
     @classmethod
-    def from_row(cls, row: tuple, spec: Optional[ImageSpec] = None) -> "Image":
+    def from_row(
+        cls, row: tuple, spec: Optional[ImageSpec] = None, liked: bool = False
+    ) -> "Image":
         return cls(
             id=row[0],
             uuid=row[1],
@@ -72,6 +76,7 @@ class Image:
             status=row[4],
             created=datetime.fromisoformat(row[5]),
             spec=spec,
+            liked=liked,
         )
 
 
@@ -222,21 +227,71 @@ def get_spec_count() -> int:
 
 
 def get_paginated_specs_with_images(
-    page_size: int, offset: int
+    page_size: int,
+    offset: int,
+    sort_by: str = "recency",  # "recency" or "image_count"
+    min_images: int = 0,
+    liked_only: bool = False,
 ) -> List[Tuple[ImageSpec, List[Image]]]:
     """Get a paginated list of specs with their images, ordered by newest spec first."""
     with conn:
-        # First get the paginated specs
-        cur = conn.execute(
+        # Build the query based on sort and filter options
+        base_query = """
+            WITH spec_counts AS (
+                SELECT spec_id, COUNT(*) as count
+                FROM images_v3
+                WHERE status = 'complete'
+                GROUP BY spec_id
+                HAVING count >= ?
+            )
+            SELECT 
+                s.id, s.prompt, s.model, s.aspect_ratio, s.created,
+                COALESCE(c.count, 0) as image_count
+            FROM image_specs s
+            LEFT JOIN spec_counts c ON s.id = c.spec_id
+            WHERE (? = 0 OR s.id IN (SELECT spec_id FROM spec_counts))
+        """
+
+        if liked_only:
+            base_query = """
+                WITH spec_counts AS (
+                    SELECT spec_id, COUNT(*) as count
+                    FROM images_v3
+                    WHERE status = 'complete'
+                    GROUP BY spec_id
+                    HAVING count >= ?
+                ),
+                specs_with_likes AS (
+                    SELECT DISTINCT i.spec_id
+                    FROM images_v3 i
+                    JOIN likes l ON i.uuid = l.image_uuid
+                )
+                SELECT 
+                    s.id, s.prompt, s.model, s.aspect_ratio, s.created,
+                    COALESCE(c.count, 0) as image_count
+                FROM image_specs s
+                LEFT JOIN spec_counts c ON s.id = c.spec_id
+                WHERE (? = 0 OR s.id IN (SELECT spec_id FROM spec_counts))
+                AND s.id IN (SELECT spec_id FROM specs_with_likes)
             """
-            SELECT id, prompt, model, aspect_ratio, created
-            FROM image_specs
-            ORDER BY created DESC
-            LIMIT ? OFFSET ?
-            """,
-            (page_size, offset),
+
+        # Add sorting
+        if sort_by == "image_count":
+            base_query += " ORDER BY image_count DESC, s.created DESC"
+        else:  # recency
+            base_query += " ORDER BY s.created DESC"
+
+        base_query += " LIMIT ? OFFSET ?"
+
+        # Get the paginated specs with their image counts
+        cur = conn.execute(
+            base_query,
+            (min_images, min_images, page_size, offset),
         )
-        specs = [ImageSpec.from_row(row) for row in cur.fetchall()]
+        rows = cur.fetchall()
+
+        # Create specs from the results
+        specs = [ImageSpec.from_row(row[:5]) for row in rows]
 
         # Then for each spec, get its images
         result = []
@@ -246,12 +301,220 @@ def get_paginated_specs_with_images(
                 SELECT 
                     i.id, i.uuid, i.spec_id, i.filepath, i.status, i.created
                 FROM images_v3 i
-                WHERE i.spec_id = ?
+                WHERE i.spec_id = ? AND i.status = 'complete'
                 ORDER BY i.created DESC
                 """,
                 (spec.id,),
             )
             images = [Image.from_row(row, spec) for row in cur.fetchall()]
+
+            # Get like status for all images
+            like_status = get_liked_status([img.uuid for img in images])
+            for img in images:
+                img.liked = like_status.get(img.uuid, False)
+
             result.append((spec, images))
 
         return result
+
+
+def split_prompt(prompt: str) -> List[str]:
+    """
+    Split a prompt into parts. The entire prompt is treated as either:
+    - Sentence-based (if it contains any periods followed by space/newline) - in which case split only on sentence boundaries
+    - Comma-based (if no sentence breaks are detected) - in which case split on commas
+    Never modifies the content of the parts themselves.
+    """
+    # Clean up the prompt
+    prompt = prompt.strip()
+
+    # Check if we have any sentences (looking for period + space/newline)
+    if re.search(r"\.(?:\s+|\n+)", prompt):
+        # Split on sentence boundaries, keeping everything else intact
+        parts = re.split(r"(?<=\.)(?:\s+|\n+)", prompt)
+        return [p.strip() for p in parts if p.strip()]
+    else:
+        # No sentence structure detected, split on commas
+        parts = [p.strip() for p in prompt.split(",") if p.strip()]
+        return parts if parts else [prompt]
+
+
+def get_random_weighted_image() -> Tuple[Optional[Image], Optional[int]]:
+    """Get a random completed image with some weighting based on spec popularity.
+
+    First randomly selects a spec (weighted by image count), then randomly selects
+    an image from that spec. This provides better distribution across specs while
+    still favoring successful ones.
+
+    Returns:
+        A tuple of (Image, image_count) where image_count is the number of completed images in the spec.
+    """
+    with conn:
+        # First randomly select a spec, weighted by completed image count
+        cur = conn.execute(
+            """
+            WITH spec_counts AS (
+                SELECT spec_id, COUNT(*) as count
+                FROM images_v3
+                WHERE status = 'complete'
+                GROUP BY spec_id
+            )
+            SELECT spec_id, count
+            FROM spec_counts
+            ORDER BY RANDOM() * SQRT(count)
+            LIMIT 1
+            """
+        )
+        row = cur.fetchone()
+        if not row:
+            return (None, None)
+
+        spec_id, count = row
+
+        # Then randomly select an image from that spec
+        cur = conn.execute(
+            """
+            SELECT 
+                i.id, i.uuid, i.spec_id, i.filepath, i.status, i.created,
+                s.id, s.prompt, s.model, s.aspect_ratio, s.created
+            FROM images_v3 i
+            JOIN image_specs s ON i.spec_id = s.id
+            WHERE i.spec_id = ? AND i.status = 'complete'
+            ORDER BY RANDOM()
+            LIMIT 1
+            """,
+            (spec_id,),
+        )
+        row = cur.fetchone()
+        if row:
+            return (Image.from_row(row[:6], ImageSpec.from_row(row[6:])), count)
+        return (None, None)
+
+
+def get_random_spec_image(spec_id: int) -> Tuple[Optional[Image], Optional[int]]:
+    """Get a random completed image from a specific spec.
+
+    Returns:
+        A tuple of (Image, image_count) where image_count is the number of completed images in the spec.
+    """
+    with conn:
+        # Get the count of completed images for this spec
+        cur = conn.execute(
+            """
+            SELECT COUNT(*) 
+            FROM images_v3 
+            WHERE spec_id = ? AND status = 'complete'
+            """,
+            (spec_id,),
+        )
+        count = cur.fetchone()[0]
+        if count == 0:
+            return (None, None)
+
+        # Get a random completed image from this spec
+        cur = conn.execute(
+            """
+            SELECT 
+                i.id, i.uuid, i.spec_id, i.filepath, i.status, i.created,
+                s.id, s.prompt, s.model, s.aspect_ratio, s.created
+            FROM images_v3 i
+            JOIN image_specs s ON i.spec_id = s.id
+            WHERE i.spec_id = ? AND i.status = 'complete'
+            ORDER BY RANDOM()
+            LIMIT 1
+            """,
+            (spec_id,),
+        )
+        row = cur.fetchone()
+        if row:
+            return (Image.from_row(row[:6], ImageSpec.from_row(row[6:])), count)
+        return (None, None)
+
+
+def toggle_like(image_uuid: str) -> bool:
+    """Toggle like status for an image. Returns new like status."""
+    with conn:
+        # Check if image exists and is complete
+        cur = conn.execute(
+            "SELECT 1 FROM images_v3 WHERE uuid = ? AND status = 'complete'",
+            (image_uuid,),
+        )
+        if not cur.fetchone():
+            return False
+
+        # Check current like status
+        cur = conn.execute(
+            "SELECT 1 FROM likes WHERE image_uuid = ?",
+            (image_uuid,),
+        )
+        currently_liked = bool(cur.fetchone())
+
+        if currently_liked:
+            conn.execute(
+                "DELETE FROM likes WHERE image_uuid = ?",
+                (image_uuid,),
+            )
+            return False
+        else:
+            conn.execute(
+                "INSERT INTO likes (image_uuid) VALUES (?)",
+                (image_uuid,),
+            )
+            return True
+
+
+def get_liked_status(image_uuids: List[str]) -> dict[str, bool]:
+    """Get like status for multiple images at once."""
+    if not image_uuids:
+        return {}
+
+    with conn:
+        placeholders = ",".join("?" * len(image_uuids))
+        cur = conn.execute(
+            f"SELECT image_uuid FROM likes WHERE image_uuid IN ({placeholders})",
+            image_uuids,
+        )
+        liked_uuids = {row[0] for row in cur.fetchall()}
+        return {uuid: uuid in liked_uuids for uuid in image_uuids}
+
+
+def get_random_liked_image() -> Tuple[Optional[Image], Optional[int]]:
+    """Get a random liked image.
+
+    Returns:
+        A tuple of (Image, image_count) where image_count is the total number of liked images.
+    """
+    with conn:
+        # Get the count of liked images
+        cur = conn.execute(
+            """
+            SELECT COUNT(*) 
+            FROM images_v3 i
+            JOIN likes l ON i.uuid = l.image_uuid
+            WHERE i.status = 'complete'
+            """
+        )
+        count = cur.fetchone()[0]
+        if count == 0:
+            return (None, None)
+
+        # Get a random liked image
+        cur = conn.execute(
+            """
+            SELECT 
+                i.id, i.uuid, i.spec_id, i.filepath, i.status, i.created,
+                s.id, s.prompt, s.model, s.aspect_ratio, s.created
+            FROM images_v3 i
+            JOIN image_specs s ON i.spec_id = s.id
+            JOIN likes l ON i.uuid = l.image_uuid
+            WHERE i.status = 'complete'
+            ORDER BY RANDOM()
+            LIMIT 1
+            """
+        )
+        row = cur.fetchone()
+        if row:
+            image = Image.from_row(row[:6], ImageSpec.from_row(row[6:]))
+            image.liked = True  # Since we know it's liked
+            return (image, count)
+        return (None, None)

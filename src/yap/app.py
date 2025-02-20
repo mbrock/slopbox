@@ -1,6 +1,8 @@
 import asyncio
 import uuid
 from contextlib import asynccontextmanager
+import re
+from typing import Optional
 
 from fastapi import FastAPI, Form, Request
 from fastapi.responses import JSONResponse
@@ -15,12 +17,21 @@ from yap.base import (
 )
 from yap.claude import generate_modified_prompt
 from yap.model import (
+    Image,
+    ImageSpec,
     create_pending_generation,
     get_generation_by_id,
     get_paginated_specs_with_images,
     get_prompt_by_uuid,
+    get_random_weighted_image,
+    get_random_spec_image,
+    get_random_liked_image,
     get_spec_count,
+    get_spec_generations,
     mark_stale_generations_as_error,
+    split_prompt,
+    toggle_like,
+    update_generation_status,
 )
 from yap.replicate import generate_image
 from yap.view import (
@@ -30,6 +41,8 @@ from yap.view import (
     render_single_image,
     render_image_or_status,
     render_spec_block,
+    render_slideshow,
+    render_slideshow_content,
 )
 
 
@@ -58,33 +71,47 @@ app.mount("/images", StaticFiles(directory=IMAGE_DIR), name="images")
 
 
 @app.get("/")
-def index():
+async def index(request: Request):
     """Serve the main page with prompt form and image gallery."""
     with render_base_layout():
         render_prompt_form()
-        gallery(1)
+        await gallery(request)
 
 
 @app.get("/gallery")
-def gallery(page: int = 1):
-    """Return just the gallery HTML for HTMX requests."""
-    # Set page size
-    page_size = 20  # Reduced since each spec will have multiple images
-
-    # Get total count of specs
-    total_count = get_spec_count()
-    total_pages = (total_count + page_size - 1) // page_size
-
-    # Ensure page is within valid range
-    page = max(1, min(page, total_pages))
-
-    # Calculate offset
+async def gallery(
+    request: Request,
+    page: int = 1,
+    sort_by: str = "recency",
+    min_images: int = 0,
+    liked_only: bool = False,
+):
+    """Show the gallery page."""
+    page_size = 10
     offset = (page - 1) * page_size
 
-    # Fetch paginated specs with their images
-    specs_with_images = get_paginated_specs_with_images(page_size, offset)
+    # Get specs and their images
+    specs_with_images = get_paginated_specs_with_images(
+        page_size, offset, sort_by, min_images, liked_only
+    )
 
-    generate_gallery(specs_with_images, page, total_pages)
+    # Calculate total pages
+    total_specs = get_spec_count()
+    total_pages = (total_specs + page_size - 1) // page_size
+
+    # If it's an HTMX request, just return the gallery content
+    # if request.headers.get("HX-Request"):
+    return generate_gallery(
+        specs_with_images, page, total_pages, sort_by, min_images, liked_only
+    )
+
+    # # Otherwise return the full page
+    # with render_base_layout():
+    #     with tag.div(classes="flex flex-col w-full"):
+    #         render_prompt_form()
+    #         generate_gallery(
+    #             specs_with_images, page, total_pages, sort_by, min_images, liked_only
+    #         )
 
 
 @app.post("/generate")
@@ -103,8 +130,11 @@ async def generate(
         if key.startswith("prompt_part_") and value.strip()
     ]
 
-    # Join parts with commas
-    prompt = ", ".join(prompt_parts)
+    # Check if we're dealing with sentences (any part ends with period + space)
+    if any(re.search(r"\.(?:\s+|\n+)", part + " ") for part in prompt_parts):
+        prompt = " ".join(prompt_parts)  # Join with spaces for sentences
+    else:
+        prompt = ", ".join(prompt_parts)  # Join with commas for non-sentences
 
     if not prompt:
         return JSONResponse({"error": "No prompt provided"}, status_code=400)
@@ -142,13 +172,20 @@ async def check_status(generation_id: str):
 async def add_prompt_part(request: Request):
     """Add a prompt part to the prompt form."""
     form_data = await request.form()
-    part = form_data.get("text")
-    previous_parts = []
-    for key, value in form_data.items():
-        if key.startswith("prompt_part_"):
-            previous_parts.append(value)
+    part = form_data.get("text", "").strip()
+    previous_parts = [
+        value.strip()
+        for key, value in form_data.items()
+        if key.startswith("prompt_part_") and value.strip()
+    ]
 
-    prompt = ", ".join(previous_parts) + ", " + part
+    all_parts = previous_parts + [part]
+
+    # Check if we're dealing with sentences (any part ends with period + space)
+    if any(re.search(r"\.(?:\s+|\n+)", p + " ") for p in all_parts):
+        prompt = " ".join(all_parts)  # Join with spaces for sentences
+    else:
+        prompt = ", ".join(all_parts)  # Join with commas for non-sentences
 
     return render_prompt_form(prompt)
 
@@ -243,8 +280,60 @@ async def copy_spec(spec_id: int):
         row = cur.fetchone()
         if row:
             prompt, model, aspect_ratio = row
-            return render_prompt_form(prompt)
+            return render_prompt_form(prompt, model, aspect_ratio)
     return render_prompt_form()
+
+
+@app.get("/slideshow")
+def slideshow(spec_id: Optional[int] = None):
+    """Serve the slideshow page."""
+    print(f"Slideshow requested with spec_id: {spec_id}")
+    if spec_id is not None:
+        image, image_count = get_random_spec_image(spec_id)
+    else:
+        image, image_count = get_random_weighted_image()
+    with render_base_layout():
+        render_slideshow(image, image_count, spec_id)
+
+
+@app.get("/slideshow/next")
+def slideshow_next(spec_id: Optional[int] = None):
+    """Return the next random image for the slideshow."""
+    print(f"Slideshow next requested with spec_id: {spec_id}")
+    if spec_id is not None:
+        image, image_count = get_random_spec_image(spec_id)
+    else:
+        image, image_count = get_random_weighted_image()
+    render_slideshow_content(image, image_count, spec_id)
+
+
+@app.get("/slideshow/liked")
+def slideshow_liked():
+    """Serve the slideshow page for liked images."""
+    image, image_count = get_random_liked_image()
+    with render_base_layout():
+        render_slideshow(image, image_count)
+
+
+@app.get("/slideshow/liked/next")
+def slideshow_liked_next():
+    """Return the next random liked image for the slideshow."""
+    image, image_count = get_random_liked_image()
+    render_slideshow_content(image, image_count)
+
+
+@app.post("/toggle-like/{image_uuid}")
+async def toggle_like_endpoint(image_uuid: str):
+    """Toggle like status for an image."""
+    new_liked_status = toggle_like(image_uuid)
+
+    # Return the updated like indicator
+    with tag.div(
+        id=f"like-indicator-{image_uuid}",
+        classes=f"absolute top-2 right-2 p-2 rounded-full {'bg-amber-100 text-amber-600' if new_liked_status else 'bg-white/80 text-neutral-600'} opacity-0 group-hover:opacity-100 transition-opacity z-20 pointer-events-none",
+    ):
+        with tag.span(classes="text-xl"):
+            text("♥")
 
 
 async def cleanup_stale_generations():

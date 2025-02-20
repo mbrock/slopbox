@@ -73,6 +73,17 @@ def create_tables():
             """
         )
 
+        # Create likes table
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS likes (
+                image_uuid TEXT PRIMARY KEY,
+                created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (image_uuid) REFERENCES images_v3 (uuid)
+            )
+            """
+        )
+
 
 def migrate_v2_to_v3():
     """Migrate data from images_v2 to the new schema."""

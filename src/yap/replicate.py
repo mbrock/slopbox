@@ -4,9 +4,14 @@ from yap.model import update_generation_status
 
 import aiofiles
 import replicate
-
-
 import os
+import logging
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
 
 replicate_client = replicate.Client(api_token=os.environ.get("REPLICATE_API_KEY"))
 
@@ -16,6 +21,11 @@ async def generate_image(
 ):
     """Background task to generate the image and update the database."""
     try:
+        logger.info(f"Starting image generation for ID: {generation_id}")
+        logger.info(
+            f"Using model: {model}, aspect ratio: {aspect_ratio}, style: {style}"
+        )
+
         # Set up model inputs
         model_inputs = {
             "prompt": prompt,
@@ -36,16 +46,22 @@ async def generate_image(
             model_inputs["style"] = style_map.get(
                 style, "realistic_image/natural_light"
             )
+            logger.info(
+                f"Using Recraft-specific settings: size={model_inputs['size']}, style={model_inputs['style']}"
+            )
         else:
             model_inputs["aspect_ratio"] = aspect_ratio
             model_inputs["safety_tolerance"] = 6
+            logger.info(f"Using standard settings with aspect_ratio={aspect_ratio}")
 
+        logger.info("Calling Replicate API to generate image...")
         # Generate the image
         output = await replicate_client.async_run(
             model,
             input=model_inputs,
         )
 
+        logger.info("Image generated successfully, downloading result...")
         # Read the image bytes
         if isinstance(output, list):
             image_bytes = await output[0].aread()
@@ -57,10 +73,14 @@ async def generate_image(
         file_path = os.path.join(IMAGE_DIR, filename)
         async with aiofiles.open(file_path, "wb") as f:
             await f.write(image_bytes)
+        logger.info(f"Image saved successfully to: {file_path}")
 
         # Update the database
         update_generation_status(generation_id, "complete", file_path)
+        logger.info(f"Generation {generation_id} completed successfully")
 
     except Exception as e:
-        print(f"Error generating image: {e}")
+        logger.error(
+            f"Error generating image for ID {generation_id}: {str(e)}", exc_info=True
+        )
         update_generation_status(generation_id, "error")
