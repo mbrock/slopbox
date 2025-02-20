@@ -34,10 +34,10 @@ RECRAFT_SIZES = [
     "1707x1024",
 ]
 
-IMAGE_DIR = os.path.expanduser("~/yap/img")
+IMAGE_DIR = os.path.expanduser("~/slopbox/img")
 os.makedirs(IMAGE_DIR, exist_ok=True)
 
-DB_PATH = os.path.expanduser("~/yap/img.db")
+DB_PATH = os.path.expanduser("~/slopbox/img.db")
 
 conn = sqlite3.connect(DB_PATH, check_same_thread=False)
 
@@ -102,7 +102,7 @@ def migrate_v2_to_v3():
         conn.execute(
             """
             INSERT INTO image_specs (prompt, model, aspect_ratio, created)
-            SELECT 
+            SELECT
                 prompt,
                 model,
                 aspect_ratio,
@@ -116,16 +116,16 @@ def migrate_v2_to_v3():
         conn.execute(
             """
             INSERT INTO images_v3 (uuid, spec_id, filepath, status, created)
-            SELECT 
+            SELECT
                 v2.uuid,
                 s.id,
                 v2.filepath,
                 v2.status,
                 v2.created
             FROM images_v2 v2
-            JOIN image_specs s 
-                ON s.prompt = v2.prompt 
-                AND s.model = v2.model 
+            JOIN image_specs s
+                ON s.prompt = v2.prompt
+                AND s.model = v2.model
                 AND s.aspect_ratio = v2.aspect_ratio
             """
         )

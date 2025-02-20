@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import List, Optional, Tuple
 import re
 
-from yap.base import conn
+from slopbox.base import conn
 
 
 @dataclass
@@ -92,12 +92,12 @@ def get_paginated_images(page_size: int, offset: int) -> List[Image]:
     with conn:
         cur = conn.execute(
             """
-            SELECT 
+            SELECT
                 i.id, i.uuid, i.spec_id, i.filepath, i.status, i.created,
                 s.id, s.prompt, s.model, s.aspect_ratio, s.created
             FROM images_v3 i
             JOIN image_specs s ON i.spec_id = s.id
-            ORDER BY i.id DESC 
+            ORDER BY i.id DESC
             LIMIT ? OFFSET ?
             """,
             (page_size, offset),
@@ -117,8 +117,8 @@ def create_pending_generation(
     with conn:
         conn.execute(
             """
-            INSERT INTO images_v3 
-            (uuid, spec_id, status) 
+            INSERT INTO images_v3
+            (uuid, spec_id, status)
             VALUES (?, ?, ?)
             """,
             (generation_id, spec.id, "pending"),
@@ -130,7 +130,7 @@ def get_generation_by_id(generation_id: str) -> Optional[Image]:
     with conn:
         cur = conn.execute(
             """
-            SELECT 
+            SELECT
                 i.id, i.uuid, i.spec_id, i.filepath, i.status, i.created,
                 s.id, s.prompt, s.model, s.aspect_ratio, s.created
             FROM images_v3 i
@@ -153,8 +153,8 @@ def update_generation_status(
         with conn:
             conn.execute(
                 """
-                UPDATE images_v3 
-                SET status = ?, filepath = ? 
+                UPDATE images_v3
+                SET status = ?, filepath = ?
                 WHERE uuid = ?
                 """,
                 (status, filepath, generation_id),
@@ -163,8 +163,8 @@ def update_generation_status(
         with conn:
             conn.execute(
                 """
-                UPDATE images_v3 
-                SET status = ? 
+                UPDATE images_v3
+                SET status = ?
                 WHERE uuid = ?
                 """,
                 (status, generation_id),
@@ -176,7 +176,7 @@ def get_prompt_by_uuid(uuid: str) -> Optional[str]:
     with conn:
         cur = conn.execute(
             """
-            SELECT s.prompt 
+            SELECT s.prompt
             FROM images_v3 i
             JOIN image_specs s ON i.spec_id = s.id
             WHERE i.uuid = ?
@@ -192,9 +192,9 @@ def mark_stale_generations_as_error() -> None:
     with conn:
         conn.execute(
             """
-            UPDATE images_v3 
-            SET status = 'error' 
-            WHERE status = 'pending' 
+            UPDATE images_v3
+            SET status = 'error'
+            WHERE status = 'pending'
             AND datetime(created, '+1 hour') < datetime('now')
             """
         )
@@ -205,7 +205,7 @@ def get_spec_generations(spec_id: int) -> List[Image]:
     with conn:
         cur = conn.execute(
             """
-            SELECT 
+            SELECT
                 i.id, i.uuid, i.spec_id, i.filepath, i.status, i.created,
                 s.id, s.prompt, s.model, s.aspect_ratio, s.created
             FROM images_v3 i
@@ -244,7 +244,7 @@ def get_paginated_specs_with_images(
                 GROUP BY spec_id
                 HAVING count >= ?
             )
-            SELECT 
+            SELECT
                 s.id, s.prompt, s.model, s.aspect_ratio, s.created,
                 COALESCE(c.count, 0) as image_count
             FROM image_specs s
@@ -266,7 +266,7 @@ def get_paginated_specs_with_images(
                     FROM images_v3 i
                     JOIN likes l ON i.uuid = l.image_uuid
                 )
-                SELECT 
+                SELECT
                     s.id, s.prompt, s.model, s.aspect_ratio, s.created,
                     COALESCE(c.count, 0) as image_count
                 FROM image_specs s
@@ -298,7 +298,7 @@ def get_paginated_specs_with_images(
         for spec in specs:
             cur = conn.execute(
                 """
-                SELECT 
+                SELECT
                     i.id, i.uuid, i.spec_id, i.filepath, i.status, i.created
                 FROM images_v3 i
                 WHERE i.spec_id = ? AND i.status = 'complete'
@@ -374,7 +374,7 @@ def get_random_weighted_image() -> Tuple[Optional[Image], Optional[int]]:
         # Then randomly select an image from that spec
         cur = conn.execute(
             """
-            SELECT 
+            SELECT
                 i.id, i.uuid, i.spec_id, i.filepath, i.status, i.created,
                 s.id, s.prompt, s.model, s.aspect_ratio, s.created
             FROM images_v3 i
@@ -401,8 +401,8 @@ def get_random_spec_image(spec_id: int) -> Tuple[Optional[Image], Optional[int]]
         # Get the count of completed images for this spec
         cur = conn.execute(
             """
-            SELECT COUNT(*) 
-            FROM images_v3 
+            SELECT COUNT(*)
+            FROM images_v3
             WHERE spec_id = ? AND status = 'complete'
             """,
             (spec_id,),
@@ -414,7 +414,7 @@ def get_random_spec_image(spec_id: int) -> Tuple[Optional[Image], Optional[int]]
         # Get a random completed image from this spec
         cur = conn.execute(
             """
-            SELECT 
+            SELECT
                 i.id, i.uuid, i.spec_id, i.filepath, i.status, i.created,
                 s.id, s.prompt, s.model, s.aspect_ratio, s.created
             FROM images_v3 i
@@ -488,7 +488,7 @@ def get_random_liked_image() -> Tuple[Optional[Image], Optional[int]]:
         # Get the count of liked images
         cur = conn.execute(
             """
-            SELECT COUNT(*) 
+            SELECT COUNT(*)
             FROM images_v3 i
             JOIN likes l ON i.uuid = l.image_uuid
             WHERE i.status = 'complete'
@@ -501,7 +501,7 @@ def get_random_liked_image() -> Tuple[Optional[Image], Optional[int]]:
         # Get a random liked image
         cur = conn.execute(
             """
-            SELECT 
+            SELECT
                 i.id, i.uuid, i.spec_id, i.filepath, i.status, i.created,
                 s.id, s.prompt, s.model, s.aspect_ratio, s.created
             FROM images_v3 i

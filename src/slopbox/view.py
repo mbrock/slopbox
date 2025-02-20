@@ -1,15 +1,14 @@
 import os
 from contextlib import contextmanager
-from random import random
 from typing import List, Tuple, Optional
 
 from tagflow import attr, tag, text
 
-from yap.base import (
+from slopbox.base import (
     ASPECT_TO_RECRAFT,
     MODELS,
 )
-from yap.model import Image, ImageSpec, split_prompt
+from slopbox.model import Image, ImageSpec, split_prompt
 
 
 def button_primary():
@@ -481,41 +480,41 @@ def render_base_layout():
                     }
 
                     @keyframes float {
-                        0% { 
-                            transform: 
-                                translateY(0) 
+                        0% {
+                            transform:
+                                translateY(0)
                                 rotate(var(--rotation))
                                 perspective(1000px)
                                 rotateX(0deg)
                                 rotateY(0deg);
                         }
-                        25% { 
-                            transform: 
-                                translateY(-8px) 
+                        25% {
+                            transform:
+                                translateY(-8px)
                                 rotate(calc(var(--rotation) - 0.5deg))
                                 perspective(1000px)
                                 rotateX(1deg)
                                 rotateY(-1deg);
                         }
-                        50% { 
-                            transform: 
-                                translateY(-12px) 
+                        50% {
+                            transform:
+                                translateY(-12px)
                                 rotate(var(--rotation))
                                 perspective(1000px)
                                 rotateX(0deg)
                                 rotateY(1deg);
                         }
-                        75% { 
-                            transform: 
-                                translateY(-4px) 
+                        75% {
+                            transform:
+                                translateY(-4px)
                                 rotate(calc(var(--rotation) + 0.5deg))
                                 perspective(1000px)
                                 rotateX(-1deg)
                                 rotateY(0deg);
                         }
-                        100% { 
-                            transform: 
-                                translateY(0) 
+                        100% {
+                            transform:
+                                translateY(0)
                                 rotate(var(--rotation))
                                 perspective(1000px)
                                 rotateX(0deg)
@@ -526,8 +525,8 @@ def render_base_layout():
                     @keyframes shine-wave {
                         0% {
                             opacity: 0;
-                            transform: 
-                                translateX(-100%) 
+                            transform:
+                                translateX(-100%)
                                 translateY(0%)
                                 rotate(45deg)
                                 scaleY(1);
@@ -537,24 +536,24 @@ def render_base_layout():
                         }
                         40% {
                             opacity: 0.5;
-                            transform: 
-                                translateX(0%) 
+                            transform:
+                                translateX(0%)
                                 translateY(-20%)
                                 rotate(45deg)
                                 scaleY(1.2);
                         }
                         50% {
                             opacity: 0.7;
-                            transform: 
-                                translateX(50%) 
+                            transform:
+                                translateX(50%)
                                 translateY(0%)
                                 rotate(45deg)
                                 scaleY(1);
                         }
                         60% {
                             opacity: 0.5;
-                            transform: 
-                                translateX(100%) 
+                            transform:
+                                translateX(100%)
                                 translateY(20%)
                                 rotate(45deg)
                                 scaleY(0.8);
@@ -564,8 +563,8 @@ def render_base_layout():
                         }
                         100% {
                             opacity: 0;
-                            transform: 
-                                translateX(150%) 
+                            transform:
+                                translateX(150%)
                                 translateY(0%)
                                 rotate(45deg)
                                 scaleY(1);

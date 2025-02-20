@@ -1,6 +1,6 @@
 import anthropic
 import os
-from yap.base import prompt_modification_system_message
+from slopbox.base import prompt_modification_system_message
 
 
 claude = anthropic.AsyncAnthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))

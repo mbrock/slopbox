@@ -1,5 +1,5 @@
-from yap.base import ASPECT_TO_RECRAFT, IMAGE_DIR
-from yap.model import update_generation_status
+from slopbox.base import ASPECT_TO_RECRAFT, IMAGE_DIR
+from slopbox.model import update_generation_status
 
 
 import aiofiles

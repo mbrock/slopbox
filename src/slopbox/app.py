@@ -9,16 +9,14 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from tagflow import DocumentMiddleware, TagResponse, tag, text
 
-from yap.base import (
+from slopbox.base import (
     IMAGE_DIR,
     conn,
     create_tables,
     migrate_v2_to_v3,
 )
-from yap.claude import generate_modified_prompt
-from yap.model import (
-    Image,
-    ImageSpec,
+from slopbox.claude import generate_modified_prompt
+from slopbox.model import (
     create_pending_generation,
     get_generation_by_id,
     get_paginated_specs_with_images,
@@ -27,18 +25,14 @@ from yap.model import (
     get_random_spec_image,
     get_random_liked_image,
     get_spec_count,
-    get_spec_generations,
     mark_stale_generations_as_error,
-    split_prompt,
     toggle_like,
-    update_generation_status,
 )
-from yap.replicate import generate_image
-from yap.view import (
+from slopbox.replicate import generate_image
+from slopbox.view import (
     generate_gallery,
     render_base_layout,
     render_prompt_form,
-    render_single_image,
     render_image_or_status,
     render_spec_block,
     render_slideshow,
@@ -64,7 +58,7 @@ async def lifespan(app: FastAPI):
         pass
 
 
-app = FastAPI(title="Yap", default_response_class=TagResponse, lifespan=lifespan)
+app = FastAPI(title="Slopbox", default_response_class=TagResponse, lifespan=lifespan)
 app.add_middleware(DocumentMiddleware)
 
 app.mount("/images", StaticFiles(directory=IMAGE_DIR), name="images")
