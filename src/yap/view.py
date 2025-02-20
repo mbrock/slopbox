@@ -1,12 +1,14 @@
-from contextlib import contextmanager
 import os
+from contextlib import contextmanager
+from typing import List, Tuple
 
-from tagflow import attr, classes, tag, text
+from tagflow import attr, tag, text
 
 from yap.base import (
     ASPECT_TO_RECRAFT,
     MODELS,
 )
+from yap.model import Image, ImageSpec
 
 
 def button_primary():
@@ -43,104 +45,175 @@ def flex_col():
     return "flex flex-col"
 
 
-def render_prompt_pills(prompt, uuid_str):
-    with tag.div(classes=flex_col()):
-        classes("bg-neutral-300")
-        with tag.div(classes=f"{flex_row()} max-w-xl justify-stretch"):
+def render_prompt_pills(image: Image):
+    """Render the prompt pills for an image."""
+    with tag.div(
+        classes="flex flex-col gap-2 p-2 bg-neutral-100 flex-1 min-w-[300px]",
+    ):
+        # Prompt
+        with tag.div(classes="flex flex-wrap gap-2"):
+            for part in image.spec.prompt.split(","):
+                with tag.span(classes="bg-neutral-200 px-2 py-1 rounded text-sm"):
+                    text(part.strip())
+
+        # Model and aspect ratio info
+        with tag.div(classes="flex gap-4 text-xs text-neutral-500 mt-2"):
+            with tag.span():
+                text(f"Model: {image.spec.model}")
+            with tag.span():
+                text(f"Aspect: {image.spec.aspect_ratio}")
+
+        # Action buttons
+        with tag.div(classes="flex gap-2 mt-2"):
             with tag.button(
-                type="button",
-                classes=f"{button_primary()} flex-1",
-                hx_post=f"/copy-prompt/{uuid_str}",
+                hx_post=f"/copy-prompt/{image.uuid}",
                 hx_target="#prompt-container",
-                hx_swap="outerHTML",
+                classes="text-xs px-2 py-1 bg-neutral-200 hover:bg-neutral-300 rounded",
             ):
-                text("Use prompt")
-        with tag.ul(
-            classes=[
-                "px-2 text-xs flex flex-row flex-wrap gap-x-2 gap-y-2 flex-1 max-w-96 py-2 text-left justify-start",
-                "border-l border-neutral-500 border-r border-b content-start",
-            ]
-        ):
-            for part in prompt.split(","):
-                part = part.strip()
-                if part:
-                    with tag.li():
-                        with tag.button(
-                            type="button",
-                            classes=f"{button_secondary()} text-left",
-                            hx_post="/add-prompt-part",
-                            hx_target="#prompt-container",
-                            hx_swap="outerHTML",
-                            name="text",
-                            value=part,
-                            hx_include="[name^='prompt_part_']",
-                        ):
-                            text(part)
+                text("Copy Prompt")
+
+            # Add regenerate button that creates a new generation with the same spec
+            with tag.button(
+                hx_post=f"/regenerate/{image.spec.id}",
+                hx_target="#image-container",
+                hx_swap="afterbegin settle:0.5s",
+                classes="text-xs px-2 py-1 bg-neutral-200 hover:bg-neutral-300 rounded",
+            ):
+                text("Regenerate")
 
 
-def render_image_or_status(prompt, filepath, status, uuid_str):
-    if status == "complete" and filepath:
+def render_image_or_status(image: Image):
+    """Render just the image or its status indicator."""
+    # Calculate aspect ratio style based on the spec
+    ratio_parts = [float(x) for x in image.spec.aspect_ratio.split(":")]
+    aspect_ratio = ratio_parts[0] / ratio_parts[1]
+    # For wide/landscape images, fix the width. For tall/portrait images, fix the height
+    size_classes = "w-256" if aspect_ratio >= 1 else "h-256"
+    aspect_style = f"aspect-[{image.spec.aspect_ratio.replace(':', '/')}]"
+
+    if image.status == "complete" and image.filepath:
         with tag.img(
-            src=f"/images/{os.path.basename(filepath)}",
-            alt=prompt,
-            classes="max-w-256 max-h-256 object-contain flex-0 bg-white p-2 shadow-xl shadow-neutral-500 z-10 border border-neutral-500 border-r-0",
+            src=f"/images/{os.path.basename(image.filepath)}",
+            alt=image.spec.prompt,
+            classes="max-w-256 max-h-256 object-contain flex-0 bg-white p-2 shadow-xl shadow-neutral-500 z-10 border border-neutral-500",
         ):
             pass
     else:
-        if status == "pending":
-            attr("hx-get", f"/check/{uuid_str}")
-            attr("hx-trigger", "load delay:1s")
-            attr("hx-swap", "outerHTML")
-        with tag.div(
-            classes="bg-neutral-300 flex items-center justify-center p-2",
-        ):
-            with tag.span(classes="text-gray-500"):
-                text("Generating..." if status == "pending" else "Error")
+        if image.status == "pending":
+            with tag.div(
+                classes=f"{size_classes} {aspect_style} bg-white p-2 shadow-xl shadow-neutral-500 z-10 border border-neutral-500 flex items-center justify-center",
+            ):
+                attr("hx-get", f"/check/{image.uuid}")
+                attr("hx-trigger", "load delay:1s")
+                attr("hx-swap", "outerHTML")
+                with tag.span(classes="text-gray-500"):
+                    text("Generating..." if image.status == "pending" else "Error")
 
 
-def render_single_image(prompt: str, filepath: str | None, status: str, uuid_str: str):
+def render_single_image(image: Image):
     """Render a single image card with appropriate HTMX attributes."""
     with tag.div(
         classes="flex p-2",
-        id=f"generation-{uuid_str}",
+        id=f"generation-{image.uuid}",
     ):
-        render_image_or_status(prompt, filepath, status, uuid_str)
-        render_prompt_pills(prompt, uuid_str)
+        render_image_or_status(image)
+        render_prompt_pills(image)
 
 
-def generate_gallery(rows, current_page: int, total_pages: int):
+def render_spec_header(spec: ImageSpec):
+    """Render the header for a spec showing prompt and generation options."""
+    with tag.div(
+        classes="w-full bg-neutral-200 p-4 rounded-t border border-neutral-400 relative"
+    ):
+        # Spec ID (subtle, top-right corner)
+        with tag.div(classes="absolute top-1 right-2 text-xs text-neutral-400"):
+            text(f"#{spec.id}")
+
+        # Prompt display
+        with tag.div(classes="flex flex-wrap gap-2 mb-3"):
+            for part in spec.prompt.split(","):
+                with tag.span(classes="bg-white px-3 py-1 rounded text-sm"):
+                    text(part.strip())
+
+        # Model and settings
+        with tag.div(classes="flex gap-4 text-xs text-neutral-600"):
+            with tag.span():
+                text(f"Model: {spec.model}")
+            with tag.span():
+                text(f"Aspect: {spec.aspect_ratio}")
+
+        # Actions
+        with tag.div(classes="flex gap-2 mt-3"):
+            with tag.button(
+                hx_post=f"/copy-spec/{spec.id}",
+                hx_target="#prompt-container",
+                classes="text-xs px-3 py-1 bg-white hover:bg-neutral-100 rounded border border-neutral-400",
+            ):
+                text("Copy Settings")
+            with tag.button(
+                hx_post=f"/regenerate/{spec.id}",
+                hx_target=f"#spec-images-{spec.id}",
+                hx_swap="afterbegin settle:0.5s",
+                classes="text-xs px-3 py-1 bg-white hover:bg-neutral-100 rounded border border-neutral-400",
+            ):
+                text("Generate New")
+
+
+def render_spec_images(spec: ImageSpec, images: List[Image]):
+    """Render the image grid for a spec."""
+    with tag.div(
+        id=f"spec-images-{spec.id}",
+        classes="flex flex-wrap gap-4 p-4 bg-neutral-100 rounded-b border-x border-b border-neutral-400",
+    ):
+        for image in images:
+            render_image_or_status(image)
+
+
+def render_spec_block(spec: ImageSpec, images: List[Image]):
+    """Render a complete spec block with header and images."""
+    with tag.div(classes="w-full mb-8"):
+        render_spec_header(spec)
+        render_spec_images(spec, images)
+
+
+def generate_gallery(
+    specs_with_images: List[Tuple[ImageSpec, List[Image]]],
+    current_page: int,
+    total_pages: int,
+):
     """Generate the HTML for the image gallery."""
     with tag.div(
-        id="image-container",
-        classes="h-full overflow-y-auto flex-1 flex flex-row flex-wrap py-4 content-start items-start justify-center",
+        id="gallery-container",
+        classes="h-full overflow-y-auto flex-1 flex flex-col items-stretch p-4 gap-8",
     ):
-        # Images
-        for row in rows:
-            prompt, filepath, status, uuid_str = row
-            render_single_image(prompt, filepath, status, uuid_str)
+        # Specs and their images
+        for spec, images in specs_with_images:
+            render_spec_block(spec, images)
 
         # Pagination controls
         if total_pages > 1:
-            with tag.div(classes="flex justify-center items-center gap-4 mt-8"):
+            with tag.div(
+                classes="flex justify-center items-center gap-4 mt-8 sticky bottom-0 bg-neutral-300 p-4 rounded-full shadow-xl"
+            ):
                 # Previous page button
                 if current_page > 1:
                     with tag.button(
                         hx_get=f"/gallery?page={current_page - 1}",
-                        hx_target="#image-container",
-                        classes="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded",
+                        hx_target="#gallery-container",
+                        classes="px-4 py-2 bg-white hover:bg-neutral-100 rounded shadow",
                     ):
                         text("Previous")
 
                 # Page indicator
-                with tag.span(classes="text-gray-600"):
+                with tag.span(classes="text-neutral-700"):
                     text(f"Page {current_page} of {total_pages}")
 
                 # Next page button
                 if current_page < total_pages:
                     with tag.button(
                         hx_get=f"/gallery?page={current_page + 1}",
-                        hx_target="#image-container",
-                        classes="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded",
+                        hx_target="#gallery-container",
+                        classes="px-4 py-2 bg-white hover:bg-neutral-100 rounded shadow",
                     ):
                         text("Next")
 
@@ -275,7 +348,7 @@ def render_prompt_form(prompt: str = None):
         # Main generation form
         with tag.form(
             hx_post="/generate",
-            hx_target="#image-container",
+            hx_target="#gallery-container",
             hx_swap="afterbegin settle:0.5s",
             hx_disabled_elt="input, button, select",
             classes="flex flex-col gap-4 w-full",

@@ -44,20 +44,83 @@ conn = sqlite3.connect(DB_PATH, check_same_thread=False)
 
 def create_tables():
     with conn:
+        # Create image_specs table
         conn.execute(
             """
-          CREATE TABLE IF NOT EXISTS images_v2 (
-              id INTEGER PRIMARY KEY,
-              uuid TEXT UNIQUE,
-              prompt TEXT,
-              filepath TEXT,
-              status TEXT DEFAULT 'pending',
-              model TEXT,
-              aspect_ratio TEXT,
-              created TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-          )
-          """
+            CREATE TABLE IF NOT EXISTS image_specs (
+                id INTEGER PRIMARY KEY,
+                prompt TEXT NOT NULL,
+                model TEXT NOT NULL,
+                aspect_ratio TEXT NOT NULL,
+                created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(prompt, model, aspect_ratio)
+            )
+            """
         )
+
+        # Create new images table with spec_id reference
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS images_v3 (
+                id INTEGER PRIMARY KEY,
+                uuid TEXT UNIQUE,
+                spec_id INTEGER NOT NULL,
+                filepath TEXT,
+                status TEXT DEFAULT 'pending',
+                created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (spec_id) REFERENCES image_specs (id)
+            )
+            """
+        )
+
+
+def migrate_v2_to_v3():
+    """Migrate data from images_v2 to the new schema."""
+    with conn:
+        # Check if migration is needed
+        cur = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='images_v2'"
+        )
+        if not cur.fetchone():
+            return
+
+        # Create new tables if they don't exist
+        create_tables()
+
+        # Insert specs with their earliest creation time
+        conn.execute(
+            """
+            INSERT INTO image_specs (prompt, model, aspect_ratio, created)
+            SELECT 
+                prompt,
+                model,
+                aspect_ratio,
+                MIN(created) as first_created
+            FROM images_v2
+            GROUP BY prompt, model, aspect_ratio
+            """
+        )
+
+        # Then insert images with the correct spec_ids
+        conn.execute(
+            """
+            INSERT INTO images_v3 (uuid, spec_id, filepath, status, created)
+            SELECT 
+                v2.uuid,
+                s.id,
+                v2.filepath,
+                v2.status,
+                v2.created
+            FROM images_v2 v2
+            JOIN image_specs s 
+                ON s.prompt = v2.prompt 
+                AND s.model = v2.model 
+                AND s.aspect_ratio = v2.aspect_ratio
+            """
+        )
+
+        # Rename old table to backup
+        conn.execute("ALTER TABLE images_v2 RENAME TO images_v2_backup")
 
 
 def prompt_modification_system_message():

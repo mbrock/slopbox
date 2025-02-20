@@ -9,15 +9,17 @@ from tagflow import DocumentMiddleware, TagResponse, tag, text
 
 from yap.base import (
     IMAGE_DIR,
+    conn,
     create_tables,
+    migrate_v2_to_v3,
 )
 from yap.claude import generate_modified_prompt
 from yap.model import (
     create_pending_generation,
     get_generation_by_id,
-    get_image_count,
-    get_paginated_images,
+    get_paginated_specs_with_images,
     get_prompt_by_uuid,
+    get_spec_count,
     mark_stale_generations_as_error,
 )
 from yap.replicate import generate_image
@@ -26,12 +28,18 @@ from yap.view import (
     render_base_layout,
     render_prompt_form,
     render_single_image,
+    render_image_or_status,
+    render_spec_block,
 )
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan context manager for FastAPI application."""
+    # Create tables and migrate data
+    create_tables()
+    migrate_v2_to_v3()
+
     # Start background task
     cleanup_task = asyncio.create_task(cleanup_stale_generations())
     yield
@@ -45,8 +53,6 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Yap", default_response_class=TagResponse, lifespan=lifespan)
 app.add_middleware(DocumentMiddleware)
-
-create_tables()
 
 app.mount("/images", StaticFiles(directory=IMAGE_DIR), name="images")
 
@@ -63,10 +69,10 @@ def index():
 def gallery(page: int = 1):
     """Return just the gallery HTML for HTMX requests."""
     # Set page size
-    page_size = 50
+    page_size = 20  # Reduced since each spec will have multiple images
 
-    # Get total count of images
-    total_count = get_image_count()
+    # Get total count of specs
+    total_count = get_spec_count()
     total_pages = (total_count + page_size - 1) // page_size
 
     # Ensure page is within valid range
@@ -75,10 +81,10 @@ def gallery(page: int = 1):
     # Calculate offset
     offset = (page - 1) * page_size
 
-    # Fetch paginated images from DB (newest first)
-    rows = get_paginated_images(page_size, offset)
+    # Fetch paginated specs with their images
+    specs_with_images = get_paginated_specs_with_images(page_size, offset)
 
-    generate_gallery(rows, page, total_pages)
+    generate_gallery(specs_with_images, page, total_pages)
 
 
 @app.post("/generate")
@@ -113,20 +119,23 @@ async def generate(
         generate_image(generation_id, prompt, aspect_ratio, model, style)
     )
 
-    row = get_generation_by_id(generation_id)
-    return render_single_image(*row)
+    image = get_generation_by_id(generation_id)
+    # Return a complete spec block for this new image
+    render_spec_block(image.spec, [image])
 
 
 @app.get("/check/{generation_id}")
 async def check_status(generation_id: str):
     """Check the status of a specific generation and return updated markup."""
-    row = get_generation_by_id(generation_id)
+    image = get_generation_by_id(generation_id)
 
-    if not row:
+    if not image:
         with tag.div():
             text("Generation not found")
     else:
-        return render_single_image(*row)
+        # Just render the image status without the prompt info
+        with tag.div(classes="relative"):
+            render_image_or_status(image)
 
 
 @app.post("/add-prompt-part")
@@ -181,6 +190,60 @@ async def copy_prompt(uuid_str: str):
     prompt = get_prompt_by_uuid(uuid_str)
     if prompt:
         return render_prompt_form(prompt)
+    return render_prompt_form()
+
+
+@app.post("/regenerate/{spec_id}")
+async def regenerate(spec_id: int):
+    """Create a new generation using an existing image spec."""
+    generation_id = str(uuid.uuid4())
+
+    # Get the spec details from the database
+    with conn:
+        cur = conn.execute(
+            """
+            SELECT prompt, model, aspect_ratio
+            FROM image_specs
+            WHERE id = ?
+            """,
+            (spec_id,),
+        )
+        row = cur.fetchone()
+        if not row:
+            return JSONResponse({"error": "Spec not found"}, status_code=404)
+
+        prompt, model, aspect_ratio = row
+
+    # Create pending record
+    create_pending_generation(generation_id, prompt, model, aspect_ratio)
+
+    # Start background task
+    asyncio.create_task(
+        generate_image(generation_id, prompt, aspect_ratio, model, "natural")
+    )
+
+    image = get_generation_by_id(generation_id)
+    # Just render the image status without the prompt info
+    with tag.div(classes="relative"):
+        render_image_or_status(image)
+
+
+@app.post("/copy-spec/{spec_id}")
+async def copy_spec(spec_id: int):
+    """Get the spec details and return a new form with them."""
+    with conn:
+        cur = conn.execute(
+            """
+            SELECT prompt, model, aspect_ratio
+            FROM image_specs
+            WHERE id = ?
+            """,
+            (spec_id,),
+        )
+        row = cur.fetchone()
+        if row:
+            prompt, model, aspect_ratio = row
+            return render_prompt_form(prompt)
     return render_prompt_form()
 
 
