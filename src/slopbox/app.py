@@ -3,6 +3,7 @@ import uuid
 from contextlib import asynccontextmanager
 import re
 from typing import Optional
+import os
 
 from fastapi import FastAPI, Form, Request
 from fastapi.responses import JSONResponse
@@ -43,6 +44,15 @@ from slopbox.view import (
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan context manager for FastAPI application."""
+    # Check for required API keys
+    replicate_key = os.environ.get("REPLICATE_API_KEY")
+    anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
+
+    if not replicate_key:
+        raise RuntimeError("REPLICATE_API_KEY environment variable is not set")
+    if not anthropic_key:
+        raise RuntimeError("ANTHROPIC_API_KEY environment variable is not set")
+
     # Create tables and migrate data
     create_tables()
     migrate_v2_to_v3()
