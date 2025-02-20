@@ -465,27 +465,38 @@ def render_prompt_inputs(prompt):
 @html.div(
     classes=[
         "flex flex-col",
+        "self-start",
         "relative",
-        "gap-4 p-2",
+        "gap-4 px-2",
         "bg-neutral-200",
-        "border-1 border-neutral-500",
-        "shadow-xl",
+        #        "border-1 border-t-0 border-neutral-500",
+        #        "shadow-xl",
     ],
     id="prompt-container",
 )
 def render_prompt_form(prompt: str = None, model: str = None, aspect_ratio: str = None):
     """Render the prompt form with generation options and modification form."""
-    # Main generation form
-    with tag.form(
-        classes=["flex flex-col gap-4", "w-full"],
-        hx_post=app.url_path_for("generate"),
-        hx_target="#gallery-container",
-        hx_swap="afterbegin settle:0.5s",
-        hx_disabled_elt="input, button, select",
-    ):
-        render_generation_options(model, aspect_ratio)
-        render_prompt_inputs(prompt)
-    render_prompt_modification_form()
+    with tag.details(classes=["w-full"], open=True):
+        with tag.summary(
+            classes=[
+                "cursor-pointer",
+                "text-sm",
+                "font-medium",
+                "p-2",
+            ]
+        ):
+            text("New")
+        # Main generation form
+        with tag.form(
+            classes=["flex flex-col gap-4", "w-full", "mt-2"],
+            hx_post=app.url_path_for("generate"),
+            hx_target="#gallery-container",
+            hx_swap="afterbegin settle:0.5s",
+            hx_disabled_elt="input, button, select",
+        ):
+            render_generation_options(model, aspect_ratio)
+            render_prompt_inputs(prompt)
+        render_prompt_modification_form()
 
 
 @html.div(
