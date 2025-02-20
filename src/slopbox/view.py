@@ -202,7 +202,7 @@ def render_spec_images(spec: ImageSpec, images: List[Image]):
         render_image_or_status(image)
 
 
-@html.div("w-full mb-8 flex flex-row items-start")
+@html.div("w-full px-2 mb-8 flex flex-row items-start")
 def render_spec_block(spec: ImageSpec, images: List[Image]):
     """Render a complete spec block with header and images."""
     render_spec_header(spec)
@@ -214,7 +214,7 @@ def render_spec_block(spec: ImageSpec, images: List[Image]):
     "flex-1",
     "flex flex-col",
     "items-stretch",
-    "gap-2",
+    "gap-1",
     id="gallery-container",
 )
 def generate_gallery(
@@ -264,7 +264,7 @@ def render_pagination_controls(
     "flex justify-between",
     "items-center",
     "bg-neutral-200",
-    "px-4 py-2",
+    "px-4 py-1",
 )
 def render_gallery_controls(sort_by, min_images, liked_only):
     render_sort_options(sort_by, min_images, liked_only)
@@ -627,5 +627,5 @@ def render_base_layout():
             with tag.title():
                 text("Slopbox")
             add_external_scripts()
-        with tag.body(classes="bg-neutral-400 flex gap-4 h-screen"):
+        with tag.body(classes="bg-neutral-400 flex h-screen"):
             yield
