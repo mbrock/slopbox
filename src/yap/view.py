@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 import os
 
 from tagflow import attr, classes, tag, text
@@ -282,3 +283,21 @@ def render_prompt_form(prompt: str = None):
             render_generation_options()
             render_prompt_inputs(prompt)
         render_prompt_modification_form()
+
+
+def add_external_scripts():
+    with tag.script(src="https://unpkg.com/@tailwindcss/browser@4"):
+        pass
+    with tag.script(src="https://unpkg.com/htmx.org@2.0.4"):
+        pass
+
+
+@contextmanager
+def render_base_layout():
+    with tag.html(lang="en"):
+        with tag.head():
+            with tag.title():
+                text("Yap")
+            add_external_scripts()
+        with tag.body(classes="bg-neutral-400 flex gap-4 h-screen"):
+            yield
