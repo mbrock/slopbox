@@ -1,10 +1,24 @@
 [project]
 name = "slopbox"
 version = "0.1.0"
-description = "Add your description here"
+description = "A web-based AI image generation platform with gallery and prompt management features"
 readme = "README.md"
 authors = [{ name = "Mikael Brockman", email = "mikael@brockman.se" }]
+license = "MIT"
 requires-python = ">=3.13"
+keywords = ["ai", "image-generation", "fastapi", "web-app"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Web Environment",
+    "Framework :: FastAPI",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Multimedia :: Graphics",
+    "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
+]
+
 dependencies = [
     "aiofiles>=24.1.0",
     "anthropic>=0.46.0",
@@ -14,9 +28,41 @@ dependencies = [
     "uvicorn>=0.34.0",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "black>=24.1.0",
+    "isort>=5.13.0",
+    "mypy>=1.8.0",
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "ruff>=0.2.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/mbrock/slopbox"
+Issues = "https://github.com/mbrock/slopbox/issues"
+
 [project.scripts]
 slopbox = "slopbox:main"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.black]
+line-length = 78
+target-version = ["py313"]
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+
+[tool.ruff]
+select = ["E", "F", "I", "N", "W"]
+target-version = "py313"
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
