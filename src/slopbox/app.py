@@ -1,74 +1,41 @@
 import asyncio
-import uuid
-from contextlib import asynccontextmanager
 import re
+import uuid
 from typing import Optional
-import os
 
-from fastapi import FastAPI, Form, Request
+from fastapi import Form, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from tagflow import DocumentMiddleware, TagResponse, tag, text
+from tagflow import DocumentMiddleware, tag, text
 
 from slopbox.base import (
     IMAGE_DIR,
     conn,
-    create_tables,
-    migrate_v2_to_v3,
 )
 from slopbox.claude import generate_modified_prompt
+from slopbox.fastapi import app
 from slopbox.model import (
     create_pending_generation,
     get_generation_by_id,
     get_paginated_specs_with_images,
     get_prompt_by_uuid,
-    get_random_weighted_image,
-    get_random_spec_image,
     get_random_liked_image,
+    get_random_spec_image,
+    get_random_weighted_image,
     get_spec_count,
-    mark_stale_generations_as_error,
     toggle_like,
 )
 from slopbox.replicate import generate_image
 from slopbox.view import (
-    generate_gallery,
     render_base_layout,
-    render_prompt_form,
+    render_image_gallery,
     render_image_or_status,
-    render_spec_block,
+    render_prompt_form,
     render_slideshow,
     render_slideshow_content,
+    render_spec_block,
 )
 
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Lifespan context manager for FastAPI application."""
-    # Check for required API keys
-    replicate_key = os.environ.get("REPLICATE_API_KEY")
-    anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
-
-    if not replicate_key:
-        raise RuntimeError("REPLICATE_API_KEY environment variable is not set")
-    if not anthropic_key:
-        raise RuntimeError("ANTHROPIC_API_KEY environment variable is not set")
-
-    # Create tables and migrate data
-    create_tables()
-    migrate_v2_to_v3()
-
-    # Start background task
-    cleanup_task = asyncio.create_task(cleanup_stale_generations())
-    yield
-    # Cancel background task on shutdown
-    cleanup_task.cancel()
-    try:
-        await cleanup_task
-    except asyncio.CancelledError:
-        pass
-
-
-app = FastAPI(title="Slopbox", default_response_class=TagResponse, lifespan=lifespan)
 app.add_middleware(DocumentMiddleware)
 
 app.mount("/images", StaticFiles(directory=IMAGE_DIR), name="images")
@@ -105,7 +72,7 @@ async def gallery(
 
     # If it's an HTMX request, just return the gallery content
     # if request.headers.get("HX-Request"):
-    return generate_gallery(
+    return render_image_gallery(
         specs_with_images, page, total_pages, sort_by, min_images, liked_only
     )
 
@@ -338,15 +305,3 @@ async def toggle_like_endpoint(image_uuid: str):
     ):
         with tag.span(classes="text-xl"):
             text("♥")
-
-
-async def cleanup_stale_generations():
-    """Background task to clean up stale pending generations."""
-    while True:
-        try:
-            mark_stale_generations_as_error()
-            # Wait for 5 minutes before next check
-            await asyncio.sleep(300)
-        except Exception as e:
-            print(f"Error cleaning up stale generations: {e}")
-            await asyncio.sleep(60)  # Wait a minute before retrying if there's an error
