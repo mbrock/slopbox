@@ -24,3 +24,18 @@ class Styles:
         "border border-neutral-500",
         "placeholder:text-neutral-600 placeholder:italic",
     ]
+
+    spec_action_button = [
+        "text-xs",
+        "px-3 py-1",
+        "bg-neutral-100 hover:bg-neutral-200",
+        "border border-neutral-400",
+    ]
+
+    pagination_button = [
+        "px-4",
+        "bg-white hover:bg-neutral-100",
+        "rounded shadow",
+    ]
+
+    pagination_text = ["text-neutral-700"]

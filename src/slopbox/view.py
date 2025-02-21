@@ -67,6 +67,16 @@ def render_prompt_pills(image: Image):
 
 def render_image_or_status(image: Image):
     """Render just the image or its status indicator."""
+
+    if image.status == "complete" and image.filepath:
+        render_complete_image(image)
+    elif image.status == "pending":
+        render_pending_image(image)
+    else:
+        render_error_image(image)
+
+
+def render_pending_image(image):
     # Calculate aspect ratio style based on the spec
     ratio_parts = [float(x) for x in image.spec.aspect_ratio.split(":")]
     aspect_ratio = ratio_parts[0] / ratio_parts[1]
@@ -74,57 +84,82 @@ def render_image_or_status(image: Image):
     size_classes = "w-256" if aspect_ratio >= 1 else "h-256"
     aspect_style = f"aspect-[{image.spec.aspect_ratio.replace(':', '/')}]"
 
-    if image.status == "complete" and image.filepath:
-        with tag.div(
-            classes=["relative group", "cursor-pointer"],
-            hx_post=app.url_path_for("toggle_like_endpoint", image_uuid=image.uuid),
-            hx_target=f"#like-indicator-{image.uuid}",
-            hx_swap="outerHTML",
-        ):
-            # Like button overlay
-            with tag.div(
-                id=f"like-indicator-{image.uuid}",
-                classes=[
-                    "absolute top-2 right-2",
-                    "p-2 rounded-full",
-                    "opacity-0 group-hover:opacity-100 transition-opacity",
-                    "z-20 pointer-events-none",
-                    "bg-amber-100 text-amber-600"
-                    if image.liked
-                    else "bg-white/80 text-neutral-600",
-                ],
-            ):
-                with tag.span(classes="text-xl"):
-                    text("♥")
+    with tag.div(
+        classes=[
+            *size_classes,
+            aspect_style,
+            "bg-white",
+            "p-2",
+            "shadow-xl shadow-neutral-500",
+            "border border-neutral-500",
+            "z-10",
+            "flex items-center justify-center",
+        ],
+    ):
+        attr("hx-get", app.url_path_for("check_status", generation_id=image.uuid))
+        attr("hx-trigger", "load delay:1s")
+        attr("hx-swap", "outerHTML")
+        with tag.span(classes="text-gray-500"):
+            text("Generating..." if image.status == "pending" else "Error")
 
-            # Image with conditional border for liked status
-            with tag.img(
-                src=f"/images/{os.path.basename(image.filepath)}",
-                alt=image.spec.prompt,
-                classes=[
-                    "max-w-256 max-h-256",
-                    "object-contain flex-0",
-                    "bg-white p-2",
-                    "shadow-xl shadow-neutral-500",
-                    "border-amber-200 border-4"
-                    if image.liked
-                    else "border border-neutral-500",
-                    "z-10",
-                ],
-            ):
-                pass
-    else:
-        if image.status == "pending":
-            with tag.div(
-                classes=f"{size_classes} {aspect_style} bg-white p-2 shadow-xl shadow-neutral-500 z-10 border border-neutral-500 flex items-center justify-center",
-            ):
-                attr(
-                    "hx-get", app.url_path_for("check_status", generation_id=image.uuid)
-                )
-                attr("hx-trigger", "load delay:1s")
-                attr("hx-swap", "outerHTML")
-                with tag.span(classes="text-gray-500"):
-                    text("Generating..." if image.status == "pending" else "Error")
+
+def render_complete_image(image):
+    with tag.div(
+        classes=["relative group", "cursor-pointer"],
+        hx_post=app.url_path_for("toggle_like_endpoint", image_uuid=image.uuid),
+        hx_target=f"#like-indicator-{image.uuid}",
+        hx_swap="outerHTML",
+    ):
+        render_like_affordance(image)
+        with tag.img(
+            src=f"/images/{os.path.basename(image.filepath)}",
+            alt=image.spec.prompt,
+            classes=[
+                "max-w-256 max-h-256",
+                "object-contain flex-0",
+                "bg-white p-2",
+                "shadow-xl shadow-neutral-500",
+                "border-amber-200 border-4"
+                if image.liked
+                else "border border-neutral-500",
+                "z-10",
+            ],
+        ):
+            pass
+
+
+def render_like_affordance(image):
+    with tag.div(
+        id=f"like-indicator-{image.uuid}",
+        classes=[
+            "absolute top-2 right-2",
+            "p-2 rounded-full",
+            "opacity-0 group-hover:opacity-100 transition-opacity",
+            "z-20 pointer-events-none",
+            "bg-amber-100 text-amber-600"
+            if image.liked
+            else "bg-white/80 text-neutral-600",
+        ],
+    ):
+        with tag.span(classes="text-xl"):
+            text("♥")
+
+
+def render_error_image(image):
+    with tag.div(
+        classes=[
+            "w-256",
+            "aspect-square",
+            "bg-white",
+            "p-2",
+            "shadow-xl shadow-neutral-500",
+            "border border-red-500",
+            "z-10",
+            "flex items-center justify-center",
+        ],
+    ):
+        with tag.span(classes="text-red-500"):
+            text("Error")
 
 
 @html.div("flex flex-row p-2")
@@ -140,6 +175,7 @@ def render_single_image(image: Image):
     "bg-neutral-200 p-2",
     "border-neutral-400",
     "relative",
+    "sticky top-2",
 )
 def render_spec_header(spec: ImageSpec):
     """Render the header for a spec showing prompt and generation options."""
@@ -170,43 +206,38 @@ def render_spec_header(spec: ImageSpec):
                 text(part)
 
 
+@html.div(classes=["flex gap-2"])
 def render_spec_action_buttons(spec):
-    with tag.div(classes=["flex gap-2"]):
-        with tag.button(
-            classes=[
-                "text-xs",
-                "px-3 py-1",
-                "bg-neutral-100 hover:bg-neutral-200",
-                "border border-neutral-400",
-            ],
-            hx_post=app.url_path_for("copy_spec", spec_id=spec.id),
-            hx_target="#prompt-container",
-        ):
-            text("Copy Settings")
+    render_copy_settings_button(spec)
+    render_generate_new_button(spec)
+    render_slideshow_button(spec)
 
-        with tag.button(
-            classes=[
-                "text-xs",
-                "px-3 py-1",
-                "bg-neutral-100 hover:bg-neutral-200",
-                "border border-neutral-400",
-            ],
-            hx_post=app.url_path_for("regenerate", spec_id=spec.id),
-            hx_target=f"#spec-images-{spec.id}",
-            hx_swap="afterbegin settle:0.5s",
-        ):
-            text("Generate New")
 
-        with tag.a(
-            classes=[
-                "text-xs",
-                "px-3 py-1",
-                "bg-neutral-100 hover:bg-neutral-200",
-                "border border-neutral-400",
-            ],
-            href=app.url_path_for("slideshow") + "?" + urlencode({"spec_id": spec.id}),
-        ):
-            text("Slideshow")
+def render_copy_settings_button(spec):
+    with tag.button(
+        classes=Styles.spec_action_button,
+        hx_post=app.url_path_for("copy_spec", spec_id=spec.id),
+        hx_target="#prompt-container",
+    ):
+        text("Copy Settings")
+
+
+def render_generate_new_button(spec):
+    with tag.button(
+        classes=Styles.spec_action_button,
+        hx_post=app.url_path_for("regenerate", spec_id=spec.id),
+        hx_target=f"#spec-images-{spec.id}",
+        hx_swap="afterbegin settle:0.5s",
+    ):
+        text("Generate New")
+
+
+def render_slideshow_button(spec):
+    with tag.a(
+        classes=Styles.spec_action_button,
+        href=app.url_path_for("slideshow") + "?" + urlencode({"spec_id": spec.id}),
+    ):
+        text("Slideshow")
 
 
 @html.div(
@@ -253,47 +284,57 @@ def render_image_gallery(
         render_spec_block(spec, images)
 
 
+def make_gallery_url(page: int, sort_by: str, min_images: int, liked_only: bool) -> str:
+    """Construct a gallery URL with the given parameters."""
+    return (
+        app.url_path_for("gallery")
+        + "?"
+        + urlencode(
+            {
+                "page": page,
+                "sort_by": sort_by,
+                "min_images": min_images,
+                "liked_only": str(liked_only).lower(),
+            }
+        )
+    )
+
+
 @html.div("flex justify-end gap-4")
 def render_pagination_controls(
     current_page, total_pages, sort_by, min_images, liked_only
 ):
     if total_pages > 1:
         if current_page > 1:
-            with tag.button(
-                classes=["px-4", "bg-white hover:bg-neutral-100", "rounded shadow"],
-                hx_get=app.url_path_for("gallery")
-                + "?"
-                + urlencode(
-                    {
-                        "page": current_page - 1,
-                        "sort_by": sort_by,
-                        "min_images": min_images,
-                        "liked_only": str(liked_only).lower(),
-                    }
-                ),
-                hx_target="#gallery-container",
-            ):
-                text("Previous")
+            render_previous_page_button(current_page, sort_by, min_images, liked_only)
 
-        with tag.span("text-neutral-700"):
-            text(f"Page {current_page} of {total_pages}")
+        render_page_indicator(current_page, total_pages)
 
         if current_page < total_pages:
-            with tag.button(
-                classes=["px-4", "bg-white hover:bg-neutral-100", "rounded shadow"],
-                hx_get=app.url_path_for("gallery")
-                + "?"
-                + urlencode(
-                    {
-                        "page": current_page + 1,
-                        "sort_by": sort_by,
-                        "min_images": min_images,
-                        "liked_only": str(liked_only).lower(),
-                    }
-                ),
-                hx_target="#gallery-container",
-            ):
-                text("Next")
+            render_next_page_button(current_page, sort_by, min_images, liked_only)
+
+
+def render_previous_page_button(current_page, sort_by, min_images, liked_only):
+    with tag.button(
+        classes=Styles.pagination_button,
+        hx_get=make_gallery_url(current_page - 1, sort_by, min_images, liked_only),
+        hx_target="#gallery-container",
+    ):
+        text("Previous")
+
+
+def render_next_page_button(current_page, sort_by, min_images, liked_only):
+    with tag.button(
+        classes=Styles.pagination_button,
+        hx_get=make_gallery_url(current_page + 1, sort_by, min_images, liked_only),
+        hx_target="#gallery-container",
+    ):
+        text("Next")
+
+
+def render_page_indicator(current_page, total_pages):
+    with tag.span(classes=Styles.pagination_text):
+        text(f"Page {current_page} of {total_pages}")
 
 
 @html.div(
@@ -346,18 +387,7 @@ def render_liked_filter(sort_by, min_images, liked_only):
     else:
         classes("bg-amber-100 hover:bg-amber-200")
 
-    url = (
-        app.url_path_for("gallery")
-        + "?"
-        + urlencode(
-            {
-                "page": 1,
-                "sort_by": sort_by,
-                "min_images": min_images,
-                "liked_only": "true",
-            }
-        )
-    )
+    url = make_gallery_url(1, sort_by, min_images, True)
     attr("href", url)
     attr("hx-get", url)
     attr("hx-target", "#gallery-container")
@@ -373,26 +403,14 @@ def render_sort_options(sort_by, min_images, liked_only):
         text("Sort by:")
     with tag.div(classes=["flex gap-2"]):
         for sort_option in [("recency", "Most Recent"), ("image_count", "Most Images")]:
-            url = (
-                app.url_path_for("gallery")
-                + "?"
-                + urlencode(
-                    {
-                        "page": 1,
-                        "sort_by": sort_option[0],
-                        "min_images": min_images,
-                        "liked_only": str(liked_only).lower(),
-                    }
-                )
-            )
             with tag.a(
                 classes=[
                     "text-xs px-3 py-1",
                     "rounded",
                     "bg-neutral-100 hover:bg-neutral-300",
                 ],
-                href=url,
-                hx_get=url,
+                href=make_gallery_url(1, sort_option[0], min_images, liked_only),
+                hx_get=make_gallery_url(1, sort_option[0], min_images, liked_only),
                 hx_target="#gallery-container",
             ):
                 text(sort_option[1])
@@ -431,27 +449,17 @@ def render_prompt_inputs(prompt):
     if not prompt_parts:
         prompt_parts = [""]
 
+    # Render existing prompt parts
     for i, part in enumerate(prompt_parts):
-        with tag.div(classes=["flex gap-2"]):
-            rows_by_char_count = max(1, len(part) // 70)
-            with tag.textarea(
-                name=f"prompt_part_{i}",
-                placeholder="Enter part of the prompt",
-                classes=Styles.input_primary,
-                rows=f"{rows_by_char_count}",
-            ):
-                text(part)
-            if prompt_parts and i < len(prompt_parts):
-                with tag.button(
-                    type="button",
-                    onclick="this.parentElement.remove()",
-                ):
-                    text("×")
+        render_prompt_part_input(i, part)
 
+    next_index = len(prompt_parts)
     with tag.button(
         type="button",
         classes=Styles.button_secondary,
-        onclick="const container = document.getElementById('prompt-inputs'); const newDiv = document.createElement('div'); newDiv.className = 'flex gap-2 w-full'; newDiv.innerHTML = `<textarea name='prompt_part_${container.children.length}' placeholder='Enter part of the prompt' class='flex-1 border border-neutral-500 px-2 bg-white text-sm placeholder:text-neutral-600 placeholder:italic' rows='3'></textarea><button type='button' onclick='this.parentElement.remove()'>×</button>`; container.appendChild(newDiv);",
+        hx_get=app.url_path_for("get_prompt_part", index=next_index),
+        hx_target="this",
+        hx_swap="beforebegin",
     ):
         text("Add prompt part")
 
@@ -460,6 +468,24 @@ def render_prompt_inputs(prompt):
         classes=Styles.button_primary,
     ):
         text("Generate")
+
+
+@html.div(classes=["flex gap-2 w-full"])
+def render_prompt_part_input(index: int = 0, content: str = ""):
+    """Render a single prompt part input with remove button."""
+    rows_by_char_count = max(1, len(content) // 70)
+    with tag.textarea(
+        name=f"prompt_part_{index}",
+        placeholder="Enter part of the prompt",
+        classes=Styles.input_primary,
+        rows=f"{rows_by_char_count}",
+    ):
+        text(content)
+    with tag.button(
+        type="button",
+        onclick="this.parentElement.remove()",
+    ):
+        text("×")
 
 
 @html.div(
@@ -555,18 +581,7 @@ def render_slideshow_content(
 @html.div("flex gap-2")
 def render_image_count_filters(sort_by, min_images, liked_only):
     for count in [0, 2, 4, 8]:
-        url = (
-            app.url_path_for("gallery")
-            + "?"
-            + urlencode(
-                {
-                    "page": 1,
-                    "sort_by": sort_by,
-                    "min_images": count,
-                    "liked_only": str(liked_only).lower(),
-                }
-            )
-        )
+        url = make_gallery_url(1, sort_by, count, liked_only)
         with tag.a(
             href=url,
             hx_get=url,

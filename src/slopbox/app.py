@@ -31,6 +31,7 @@ from slopbox.view import (
     render_image_gallery,
     render_image_or_status,
     render_prompt_form,
+    render_prompt_part_input,
     render_slideshow,
     render_slideshow_content,
     render_spec_block,
@@ -92,7 +93,6 @@ async def generate(
     model: str = Form("black-forest-labs/flux-1.1-pro-ultra"),
     style: str = Form("natural"),
 ):
-    """Handle prompt submission, create a pending record, and start generation in background."""
     # Get all prompt parts from form data
     form_data = await request.form()
     prompt_parts = [
@@ -301,7 +301,20 @@ async def toggle_like_endpoint(image_uuid: str):
     # Return the updated like indicator
     with tag.div(
         id=f"like-indicator-{image_uuid}",
-        classes=f"absolute top-2 right-2 p-2 rounded-full {'bg-amber-100 text-amber-600' if new_liked_status else 'bg-white/80 text-neutral-600'} opacity-0 group-hover:opacity-100 transition-opacity z-20 pointer-events-none",
+        classes=[
+            "absolute top-2 right-2 p-2 rounded-full",
+            "bg-amber-100 text-amber-600"
+            if new_liked_status
+            else "bg-white/80 text-neutral-600",
+            "opacity-0 group-hover:opacity-100 transition-opacity",
+            "z-20 pointer-events-none",
+        ],
     ):
         with tag.span(classes="text-xl"):
             text("♥")
+
+
+@app.get("/prompt-part/{index}")
+async def get_prompt_part(index: int):
+    """Return markup for a new prompt part input."""
+    return render_prompt_part_input(index)
