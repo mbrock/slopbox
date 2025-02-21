@@ -248,10 +248,26 @@ def render_slideshow_button(spec):
 def render_spec_images(spec: ImageSpec, images: List[Image], liked_only: bool = False):
     """Render the image grid for a spec."""
     attr("id", f"spec-images-{spec.id}")
-    for image in images:
-        if liked_only and not image.liked:
-            continue
+
+    # Filter liked images if needed
+    filtered_images = [img for img in images if not liked_only or img.liked]
+
+    # Show first 4 images
+    for image in filtered_images[:4]:
         render_image_or_status(image)
+
+    # If there are more images, show them in a collapsible section
+    if len(filtered_images) > 4:
+        with tag.details(classes=["w-full mt-4"]):
+            with tag.summary(
+                classes=[
+                    "cursor-pointer text-sm text-neutral-600 hover:text-neutral-800"
+                ]
+            ):
+                text(f"Show {len(filtered_images) - 4} more images...")
+            with tag.div(classes=["flex flex-wrap gap-4 mt-4"]):
+                for image in filtered_images[4:]:
+                    render_image_or_status(image)
 
 
 @html.div("w-full px-2 mb-8 flex flex-row items-start")
@@ -274,8 +290,21 @@ def render_image_gallery(
     render_gallery_controls(sort_by, liked_only)
 
     # Render specs and their images
-    for spec, images in specs_with_images:
-        render_spec_block(spec, images, liked_only)
+    with tag.div(id="gallery-container"):
+        if len(specs_with_images) > 20:
+            with tag.details(classes=["w-full"], open=True):
+                with tag.summary(
+                    classes=[
+                        "cursor-pointer text-sm font-medium p-2 bg-neutral-200 hover:bg-neutral-300"
+                    ]
+                ):
+                    text(f"Showing {len(specs_with_images)} image sets")
+                with tag.div(classes=["mt-4"]):
+                    for spec, images in specs_with_images:
+                        render_spec_block(spec, images, liked_only)
+        else:
+            for spec, images in specs_with_images:
+                render_spec_block(spec, images, liked_only)
 
     # Render pagination controls
     render_pagination_controls(current_page, total_pages, sort_by, liked_only)
@@ -530,7 +559,7 @@ def render_slideshow_content(
     attr("id", "slideshow-content")
     attr("hx-get", next_url)
     attr("hx-target", "#slideshow-content")
-    attr("hx-swap", "outerHTML transition:true")
+    attr("hx-swap", "outerHTML")
     attr("hx-trigger", "every 1s")
 
     if image and image.status == "complete" and image.filepath:
