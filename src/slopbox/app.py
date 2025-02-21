@@ -16,6 +16,7 @@ from slopbox.claude import generate_modified_prompt
 from slopbox.fastapi import app
 from slopbox.model import (
     create_pending_generation,
+    get_gallery_total_pages,
     get_generation_by_id,
     get_paginated_specs_with_images,
     get_prompt_by_uuid,
@@ -55,35 +56,32 @@ async def gallery(
     request: Request,
     page: int = 1,
     sort_by: str = "recency",
-    min_images: int = 0,
     liked_only: bool = False,
 ):
     """Show the gallery page."""
-    page_size = 10
-    offset = (page - 1) * page_size
+    # Each page represents one day
+    page_size = 1  # one day per page
+    offset = page - 1  # offset in days
 
-    # Get specs and their images
+    # Get specs and their images for this day
     specs_with_images = get_paginated_specs_with_images(
-        page_size, offset, sort_by, min_images, liked_only
+        page_size, offset, sort_by, liked_only
     )
 
-    # Calculate total pages
-    total_specs = get_spec_count()
-    total_pages = (total_specs + page_size - 1) // page_size
+    # Get total pages
+    total_pages = get_gallery_total_pages(liked_only)
 
-    # If it's an HTMX request, just return the gallery content
-    # if request.headers.get("HX-Request"):
-    return render_image_gallery(
-        specs_with_images, page, total_pages, sort_by, min_images, liked_only
-    )
+    if request.headers.get("HX-Request"):
+        return render_image_gallery(
+            specs_with_images, page, total_pages, sort_by, liked_only=liked_only
+        )
 
-    # # Otherwise return the full page
-    # with render_base_layout():
-    #     with tag.div(classes="flex flex-col w-full"):
-    #         render_prompt_form()
-    #         generate_gallery(
-    #             specs_with_images, page, total_pages, sort_by, min_images, liked_only
-    #         )
+    # Return the gallery content
+    with render_base_layout():
+        render_prompt_form()
+        render_image_gallery(
+            specs_with_images, page, total_pages, sort_by, liked_only=liked_only
+        )
 
 
 @app.post("/generate")
@@ -268,7 +266,9 @@ def slideshow(spec_id: Optional[int] = None):
 
 
 @app.get("/slideshow/next")
-def slideshow_next(spec_id: Optional[int] = None):
+def slideshow_next(
+    spec_id: Optional[int] = None,
+):
     """Return the next random image for the slideshow."""
     print(f"Slideshow next requested with spec_id: {spec_id}")
     if spec_id is not None:
@@ -283,14 +283,14 @@ def slideshow_liked():
     """Serve the slideshow page for liked images."""
     image, image_count = get_random_liked_image()
     with render_base_layout():
-        render_slideshow(image, image_count)
+        render_slideshow(image, image_count, liked_only=True)
 
 
 @app.get("/slideshow/liked/next")
 def slideshow_liked_next():
     """Return the next random liked image for the slideshow."""
     image, image_count = get_random_liked_image()
-    render_slideshow_content(image, image_count)
+    render_slideshow_content(image, image_count, liked_only=True)
 
 
 @app.post("/toggle-like/{image_uuid}")

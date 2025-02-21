@@ -2,8 +2,11 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import List, Optional, Tuple
 import re
+import logging
 
 from slopbox.base import conn
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -226,95 +229,148 @@ def get_spec_count() -> int:
         return cur.fetchone()[0]
 
 
+def get_gallery_total_pages(liked_only: bool = False) -> int:
+    """Get the total number of pages in the gallery based on distinct dates with content."""
+    with conn:
+        date_query = """
+            SELECT COUNT(DISTINCT date(s.created))
+            FROM image_specs s
+            JOIN images_v3 i ON i.spec_id = s.id
+            WHERE i.status = 'complete'
+        """
+
+        if liked_only:
+            date_query = """
+                SELECT COUNT(DISTINCT date(s.created))
+                FROM image_specs s
+                JOIN images_v3 i ON i.spec_id = s.id
+                JOIN likes l ON i.uuid = l.image_uuid
+                WHERE i.status = 'complete'
+            """
+
+        cur = conn.execute(date_query)
+        total_pages = cur.fetchone()[0]
+        return max(1, total_pages)  # Ensure at least 1 page
+
+
 def get_paginated_specs_with_images(
     page_size: int,
     offset: int,
     sort_by: str = "recency",  # "recency" or "image_count"
-    min_images: int = 0,
     liked_only: bool = False,
 ) -> List[Tuple[ImageSpec, List[Image]]]:
-    """Get a paginated list of specs with their images, ordered by newest spec first."""
+    """Get a paginated list of specs with their images, grouped by date.
+
+    Args:
+        page_size: Number of dates to fetch
+        offset: Number of dates with content to skip
+        sort_by: How to sort specs within each date
+        liked_only: Whether to only include specs with liked images
+    """
+    logger.info(
+        f"Getting paginated specs with page_size={page_size}, offset={offset}, sort_by={sort_by}, liked_only={liked_only}"
+    )
+
     with conn:
-        # Build the query based on sort and filter options
-        base_query = """
-            WITH spec_counts AS (
-                SELECT spec_id, COUNT(*) as count
-                FROM images_v3
-                WHERE status = 'complete'
-                GROUP BY spec_id
-                HAVING count >= ?
+        # First get the dates that have content, applying pagination to the dates
+        date_query = """
+            WITH dates_with_content AS (
+                SELECT DISTINCT date(s.created) as spec_date
+                FROM image_specs s
+                JOIN images_v3 i ON i.spec_id = s.id
+                WHERE i.status = 'complete'
+                {liked_filter}
+                ORDER BY spec_date DESC
+                LIMIT ? OFFSET ?
             )
-            SELECT
-                s.id, s.prompt, s.model, s.aspect_ratio, s.created,
-                COALESCE(c.count, 0) as image_count
-            FROM image_specs s
-            LEFT JOIN spec_counts c ON s.id = c.spec_id
-            WHERE (? = 0 OR s.id IN (SELECT spec_id FROM spec_counts))
+            SELECT spec_date FROM dates_with_content
         """
 
-        if liked_only:
-            base_query = """
-                WITH spec_counts AS (
-                    SELECT spec_id, COUNT(*) as count
-                    FROM images_v3
-                    WHERE status = 'complete'
-                    GROUP BY spec_id
-                    HAVING count >= ?
-                ),
-                specs_with_likes AS (
-                    SELECT DISTINCT i.spec_id
-                    FROM images_v3 i
-                    JOIN likes l ON i.uuid = l.image_uuid
-                )
-                SELECT
-                    s.id, s.prompt, s.model, s.aspect_ratio, s.created,
-                    COALESCE(c.count, 0) as image_count
-                FROM image_specs s
-                LEFT JOIN spec_counts c ON s.id = c.spec_id
-                WHERE (? = 0 OR s.id IN (SELECT spec_id FROM spec_counts))
-                AND s.id IN (SELECT spec_id FROM specs_with_likes)
-            """
-
-        # Add sorting
-        if sort_by == "image_count":
-            base_query += " ORDER BY image_count DESC, s.created DESC"
-        else:  # recency
-            base_query += " ORDER BY s.created DESC"
-
-        base_query += " LIMIT ? OFFSET ?"
-
-        # Get the paginated specs with their image counts
-        cur = conn.execute(
-            base_query,
-            (min_images, min_images, page_size, offset),
+        liked_filter = (
+            "AND i.uuid IN (SELECT image_uuid FROM likes)" if liked_only else ""
         )
-        rows = cur.fetchall()
 
-        # Create specs from the results
-        specs = [ImageSpec.from_row(row[:5]) for row in rows]
+        # Get the target dates for this page
+        cur = conn.execute(
+            date_query.format(liked_filter=liked_filter), (page_size, offset)
+        )
+        target_dates = [row[0] for row in cur.fetchall()]
 
-        # Then for each spec, get its images
-        result = []
-        for spec in specs:
-            cur = conn.execute(
-                """
-                SELECT
-                    i.id, i.uuid, i.spec_id, i.filepath, i.status, i.created
-                FROM images_v3 i
-                WHERE i.spec_id = ? AND i.status = 'complete'
-                ORDER BY i.created DESC
-                """,
-                (spec.id,),
+        if not target_dates:
+            logger.info("No dates found, returning empty list")
+            return []
+
+        # Now get all specs for these dates
+        spec_query = """
+            WITH spec_counts AS (
+                SELECT s.id,
+                    (SELECT COUNT(*) FROM images_v3 WHERE spec_id = s.id AND status = 'complete') as image_count
+                FROM image_specs s
             )
-            images = [Image.from_row(row, spec) for row in cur.fetchall()]
+            SELECT DISTINCT s.*
+            FROM image_specs s
+            JOIN images_v3 i ON i.spec_id = s.id
+            JOIN spec_counts sc ON s.id = sc.id
+            WHERE i.status = 'complete'
+            AND date(s.created) IN ({date_placeholders})
+            {liked_filter}
+            ORDER BY date(s.created) DESC, {sort_clause}
+        """
 
-            # Get like status for all images
-            like_status = get_liked_status([img.uuid for img in images])
-            for img in images:
-                img.liked = like_status.get(img.uuid, False)
+        sort_clause = (
+            "s.created DESC"
+            if sort_by == "recency"
+            else "sc.image_count DESC, s.created DESC"
+        )
 
-            result.append((spec, images))
+        date_placeholders = ",".join("?" * len(target_dates))
+        spec_query = spec_query.format(
+            date_placeholders=date_placeholders,
+            liked_filter=liked_filter,
+            sort_clause=sort_clause,
+        )
 
+        logger.info(f"Executing spec query for dates: {target_dates}")
+        cur = conn.execute(spec_query, target_dates)
+        specs = [ImageSpec.from_row(row) for row in cur.fetchall()]
+        logger.info(f"Found {len(specs)} specs")
+
+        # Get all complete images for these specs
+        if not specs:
+            logger.info("No specs found, returning empty list")
+            return []
+
+        image_query = """
+            SELECT 
+                i.id, i.uuid, i.spec_id, i.filepath, i.status, i.created,
+                EXISTS(SELECT 1 FROM likes WHERE image_uuid = i.uuid) as liked
+            FROM images_v3 i
+            WHERE i.spec_id IN ({placeholders})
+            AND i.status = 'complete'
+            ORDER BY i.created DESC
+        """
+        placeholders = ",".join("?" * len(specs))
+        spec_ids = [spec.id for spec in specs]
+        specs_by_id = {spec.id: spec for spec in specs}
+
+        logger.info(f"Executing image query for spec_ids: {spec_ids}")
+        cur = conn.execute(image_query.format(placeholders=placeholders), spec_ids)
+
+        # Group images by spec_id
+        images_by_spec = {}
+        for row in cur.fetchall():
+            image = Image.from_row(row[:6], specs_by_id[row[2]], liked=row[6])
+            if image.spec_id not in images_by_spec:
+                images_by_spec[image.spec_id] = []
+            images_by_spec[image.spec_id].append(image)
+
+        logger.info(f"Found images for {len(images_by_spec)} specs")
+        for spec_id, images in images_by_spec.items():
+            logger.info(f"Spec {spec_id} has {len(images)} images")
+
+        # Return specs with their images
+        result = [(spec, images_by_spec.get(spec.id, [])) for spec in specs]
+        logger.info(f"Returning {len(result)} spec-image pairs")
         return result
 
 

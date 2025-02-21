@@ -86,7 +86,7 @@ def render_pending_image(image):
 
     with tag.div(
         classes=[
-            *size_classes,
+            size_classes,
             aspect_style,
             "bg-white",
             "p-2",
@@ -98,12 +98,12 @@ def render_pending_image(image):
     ):
         attr("hx-get", app.url_path_for("check_status", generation_id=image.uuid))
         attr("hx-trigger", "load delay:1s")
-        attr("hx-swap", "outerHTML")
+        attr("hx-swap", "outerHTML transition:true")
         with tag.span(classes="text-gray-500"):
             text("Generating..." if image.status == "pending" else "Error")
 
 
-def render_complete_image(image):
+def render_complete_image(image: Image):
     with tag.div(
         classes=["relative group", "cursor-pointer"],
         hx_post=app.url_path_for("toggle_like_endpoint", image_uuid=image.uuid),
@@ -245,175 +245,139 @@ def render_slideshow_button(spec):
     "gap-4",
     "px-4",
 )
-def render_spec_images(spec: ImageSpec, images: List[Image]):
+def render_spec_images(spec: ImageSpec, images: List[Image], liked_only: bool = False):
     """Render the image grid for a spec."""
     attr("id", f"spec-images-{spec.id}")
     for image in images:
+        if liked_only and not image.liked:
+            continue
         render_image_or_status(image)
 
 
 @html.div("w-full px-2 mb-8 flex flex-row items-start")
-def render_spec_block(spec: ImageSpec, images: List[Image]):
+def render_spec_block(spec: ImageSpec, images: List[Image], liked_only: bool = False):
     """Render a complete spec block with header and images."""
     render_spec_header(spec)
-    render_spec_images(spec, images)
+    render_spec_images(spec, images, liked_only)
 
 
-@html.div(
-    "h-full overflow-y-auto",
-    "flex-1",
-    "flex flex-col items-stretch",
-    "gap-1",
-    id="gallery-container",
-)
+@html.div("h-full overflow-y-auto flex-1 flex flex-col items-stretch gap-1")
 def render_image_gallery(
     specs_with_images: List[Tuple[ImageSpec, List[Image]]],
     current_page: int,
     total_pages: int,
     sort_by: str = "recency",
-    min_images: int = 0,
     liked_only: bool = False,
 ):
-    """Generate the HTML for the image gallery."""
-    render_gallery_controls(sort_by, min_images, liked_only)
-    render_pagination_controls(
-        current_page, total_pages, sort_by, min_images, liked_only
-    )
+    """Render the image gallery with pagination controls."""
+    # Render gallery controls
+    render_gallery_controls(sort_by, liked_only)
 
+    # Render specs and their images
     for spec, images in specs_with_images:
-        render_spec_block(spec, images)
+        render_spec_block(spec, images, liked_only)
+
+    # Render pagination controls
+    render_pagination_controls(current_page, total_pages, sort_by, liked_only)
 
 
-def make_gallery_url(page: int, sort_by: str, min_images: int, liked_only: bool) -> str:
-    """Construct a gallery URL with the given parameters."""
-    return (
-        app.url_path_for("gallery")
-        + "?"
-        + urlencode(
-            {
-                "page": page,
-                "sort_by": sort_by,
-                "min_images": min_images,
-                "liked_only": str(liked_only).lower(),
-            }
-        )
-    )
+def make_gallery_url(page: int, sort_by: str, liked_only: bool) -> str:
+    """Generate a URL for the gallery with the given parameters."""
+    params = {
+        "page": page,
+        "sort_by": sort_by,
+    }
+    if liked_only:
+        params["liked_only"] = "true"
+    return app.url_path_for("gallery") + "?" + urlencode(params)
 
 
-@html.div("flex justify-end gap-4")
-def render_pagination_controls(
-    current_page, total_pages, sort_by, min_images, liked_only
-):
-    if total_pages > 1:
-        if current_page > 1:
-            render_previous_page_button(current_page, sort_by, min_images, liked_only)
-
-        render_page_indicator(current_page, total_pages)
-
-        if current_page < total_pages:
-            render_next_page_button(current_page, sort_by, min_images, liked_only)
+def render_pagination_controls(current_page, total_pages, sort_by, liked_only):
+    """Render the pagination controls."""
+    with tag.div(classes=["flex justify-end gap-4"]):
+        render_previous_page_button(current_page, sort_by, liked_only)
+        with tag.span(classes=["text-sm text-neutral-500"]):
+            text(f"Page {current_page} of {total_pages}")
+        render_next_page_button(current_page, total_pages, sort_by, liked_only)
 
 
-def render_previous_page_button(current_page, sort_by, min_images, liked_only):
-    with tag.button(
-        classes=Styles.pagination_button,
-        hx_get=make_gallery_url(current_page - 1, sort_by, min_images, liked_only),
-        hx_target="#gallery-container",
+def render_previous_page_button(current_page, sort_by, liked_only):
+    """Render the previous page button."""
+    if current_page > 1:
+        with tag.a(
+            href=make_gallery_url(current_page - 1, sort_by, liked_only),
+            classes=["text-sm text-neutral-500 hover:text-neutral-800"],
+        ):
+            text("← Previous")
+
+
+def render_next_page_button(current_page, total_pages, sort_by, liked_only):
+    """Render the next page button."""
+    if current_page < total_pages:
+        with tag.a(
+            href=make_gallery_url(current_page + 1, sort_by, liked_only),
+            classes=["text-sm text-neutral-500 hover:text-neutral-800"],
+        ):
+            text("Next →")
+
+
+def render_gallery_controls(sort_by, liked_only):
+    """Render the gallery controls."""
+    with tag.div(
+        classes=[
+            "flex justify-between items-center",
+            "bg-neutral-200",
+            "px-4 py-1",
+        ],
     ):
-        text("Previous")
-
-
-def render_next_page_button(current_page, sort_by, min_images, liked_only):
-    with tag.button(
-        classes=Styles.pagination_button,
-        hx_get=make_gallery_url(current_page + 1, sort_by, min_images, liked_only),
-        hx_target="#gallery-container",
-    ):
-        text("Next")
-
-
-def render_page_indicator(current_page, total_pages):
-    with tag.span(classes=Styles.pagination_text):
-        text(f"Page {current_page} of {total_pages}")
-
-
-@html.div(
-    "flex justify-between items-center",
-    "bg-neutral-200",
-    "px-4 py-1",
-)
-def render_gallery_controls(sort_by, min_images, liked_only):
-    render_sort_options(sort_by, min_images, liked_only)
-    render_image_filters(sort_by, min_images, liked_only)
-
-
-@html.div("flex items-center gap-4")
-def render_image_filters(sort_by, min_images, liked_only):
-    with tag.span(classes=["text-sm font-medium"]):
-        text("Filter:")
-    with tag.div(classes=["flex gap-2"]):
-        render_image_count_filters(sort_by, min_images, liked_only)
-        render_liked_filter(sort_by, min_images, liked_only)
+        render_sort_options(sort_by, liked_only)
         render_slideshow_link()
 
 
-@html.a(
-    classes=[
-        "text-xs",
-        "px-3 py-1",
-        "bg-amber-100 hover:bg-amber-200",
-        "rounded",
-        "flex items-center gap-1",
-    ],
-)
-def render_slideshow_link():
-    attr("href", app.url_path_for("slideshow"))
-    with tag.span(classes="text-sm"):
-        text("♥")
-    text("Slideshow")
+def render_sort_options(sort_by, liked_only):
+    """Render the sort options."""
+    with tag.div(classes=["flex items-center gap-4"]):
+        # Sort by recency
+        with tag.a(
+            href=make_gallery_url(1, "recency", liked_only),
+            classes=[
+                "text-xs",
+                "px-3 py-1",
+                "rounded",
+                "bg-neutral-300 hover:bg-neutral-400"
+                if sort_by == "recency"
+                else "hover:bg-neutral-300",
+            ],
+        ):
+            text("Most Recent")
 
+        # Sort by image count
+        with tag.a(
+            href=make_gallery_url(1, "image_count", liked_only),
+            classes=[
+                "text-xs",
+                "px-3 py-1",
+                "rounded",
+                "bg-neutral-300 hover:bg-neutral-400"
+                if sort_by == "image_count"
+                else "hover:bg-neutral-300",
+            ],
+        ):
+            text("Most Generated")
 
-@html.a(
-    classes=[
-        "text-xs",
-        "px-3 py-1",
-        "rounded",
-        "flex items-center gap-1",
-    ],
-)
-def render_liked_filter(sort_by, min_images, liked_only):
-    if liked_only:
-        classes("bg-amber-600 text-white")
-    else:
-        classes("bg-amber-100 hover:bg-amber-200")
-
-    url = make_gallery_url(1, sort_by, min_images, True)
-    attr("href", url)
-    attr("hx-get", url)
-    attr("hx-target", "#gallery-container")
-
-    with tag.span(classes="text-sm"):
-        text("♥")
-    text("Liked")
-
-
-@html.div("flex items-center gap-4")
-def render_sort_options(sort_by, min_images, liked_only):
-    with tag.span(classes=["text-sm font-medium"]):
-        text("Sort by:")
-    with tag.div(classes=["flex gap-2"]):
-        for sort_option in [("recency", "Most Recent"), ("image_count", "Most Images")]:
-            with tag.a(
-                classes=[
-                    "text-xs px-3 py-1",
-                    "rounded",
-                    "bg-neutral-100 hover:bg-neutral-300",
-                ],
-                href=make_gallery_url(1, sort_option[0], min_images, liked_only),
-                hx_get=make_gallery_url(1, sort_option[0], min_images, liked_only),
-                hx_target="#gallery-container",
-            ):
-                text(sort_option[1])
+        # Liked filter
+        with tag.a(
+            href=make_gallery_url(1, sort_by, not liked_only),
+            classes=[
+                "text-xs",
+                "px-3 py-1",
+                "rounded",
+                "bg-amber-100 hover:bg-amber-200"
+                if liked_only
+                else "hover:bg-neutral-300",
+            ],
+        ):
+            text("♥ Liked Only" if not liked_only else "Show All")
 
 
 @html.div("flex flex-col gap-1")
@@ -539,9 +503,10 @@ def render_slideshow(
     image: Optional[Image],
     image_count: Optional[int] = None,
     spec_id: Optional[int] = None,
+    liked_only: bool = False,
 ):
     """Render the slideshow view with a single image and auto-refresh."""
-    render_slideshow_content(image, image_count, spec_id)
+    render_slideshow_content(image, image_count, spec_id, liked_only)
 
 
 @html.div(classes=["flex flex-col", "items-center justify-center", "relative"])
@@ -549,11 +514,18 @@ def render_slideshow_content(
     image: Optional[Image],
     image_count: Optional[int] = None,
     spec_id: Optional[int] = None,
+    liked_only: bool = False,
 ):
     """Render just the content of the slideshow that needs to be updated."""
-    next_url = app.url_path_for("slideshow_next")
-    if spec_id is not None:
-        next_url += "?" + urlencode({"spec_id": spec_id})
+    if liked_only:
+        next_url = app.url_path_for("slideshow_liked_next")
+    else:
+        next_url = app.url_path_for("slideshow_next")
+        params = {}
+        if spec_id is not None:
+            params["spec_id"] = spec_id
+        if params:
+            next_url += "?" + urlencode(params)
 
     attr("id", "slideshow-content")
     attr("hx-get", next_url)
@@ -673,3 +645,19 @@ def render_prompt_modification_form():
         classes=Styles.button_primary,
     ):
         text("Modify")
+
+
+@html.a(
+    classes=[
+        "text-xs",
+        "px-3 py-1",
+        "bg-amber-100 hover:bg-amber-200",
+        "rounded",
+        "flex items-center gap-1",
+    ],
+)
+def render_slideshow_link():
+    attr("href", app.url_path_for("slideshow_liked"))
+    with tag.span(classes="text-sm"):
+        text("♥")
+    text("Slideshow")
