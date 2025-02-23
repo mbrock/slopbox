@@ -46,9 +46,7 @@ app.mount("/images", StaticFiles(directory=IMAGE_DIR), name="images")
 @app.get("/")
 async def index(request: Request):
     """Serve the main page with prompt form and image gallery."""
-    with render_base_layout():
-        render_prompt_form()
-        await gallery(request)
+    await gallery(request)
 
 
 @app.get("/gallery")

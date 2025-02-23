@@ -97,8 +97,8 @@ def render_pending_image(image):
         ],
     ):
         attr("hx-get", app.url_path_for("check_status", generation_id=image.uuid))
-        attr("hx-trigger", "load delay:1s")
-        attr("hx-swap", "outerHTML transition:true")
+        attr("hx-trigger", "load delay:3s")
+        attr("hx-swap", "outerHTML")
         with tag.span(classes="text-gray-500"):
             text("Generating..." if image.status == "pending" else "Error")
 
@@ -243,7 +243,6 @@ def render_slideshow_button(spec):
 @html.div(
     "flex flex-wrap",
     "gap-4",
-    "px-4",
 )
 def render_spec_images(spec: ImageSpec, images: List[Image], liked_only: bool = False):
     """Render the image grid for a spec."""
@@ -270,7 +269,7 @@ def render_spec_images(spec: ImageSpec, images: List[Image], liked_only: bool = 
                     render_image_or_status(image)
 
 
-@html.div("w-full px-2 mb-8 flex flex-row items-start")
+@html.div("w-full px-2 mb-8 flex flex-col items-start gap-2")
 def render_spec_block(spec: ImageSpec, images: List[Image], liked_only: bool = False):
     """Render a complete spec block with header and images."""
     render_spec_header(spec)
@@ -291,20 +290,8 @@ def render_image_gallery(
 
     # Render specs and their images
     with tag.div(id="gallery-container"):
-        if len(specs_with_images) > 20:
-            with tag.details(classes=["w-full"], open=True):
-                with tag.summary(
-                    classes=[
-                        "cursor-pointer text-sm font-medium p-2 bg-neutral-200 hover:bg-neutral-300"
-                    ]
-                ):
-                    text(f"Showing {len(specs_with_images)} image sets")
-                with tag.div(classes=["mt-4"]):
-                    for spec, images in specs_with_images:
-                        render_spec_block(spec, images, liked_only)
-        else:
-            for spec, images in specs_with_images:
-                render_spec_block(spec, images, liked_only)
+        for spec, images in specs_with_images:
+            render_spec_block(spec, images, liked_only)
 
     # Render pagination controls
     render_pagination_controls(current_page, total_pages, sort_by, liked_only)
