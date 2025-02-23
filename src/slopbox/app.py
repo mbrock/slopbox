@@ -23,7 +23,6 @@ from slopbox.model import (
     get_random_liked_image,
     get_random_spec_image,
     get_random_weighted_image,
-    get_spec_count,
     toggle_like,
 )
 from slopbox.replicate import generate_image
@@ -31,7 +30,7 @@ from slopbox.view import (
     render_base_layout,
     render_image_gallery,
     render_image_or_status,
-    render_prompt_form,
+    render_prompt_form_content,
     render_prompt_part_input,
     render_slideshow,
     render_slideshow_content,
@@ -46,7 +45,7 @@ app.mount("/images", StaticFiles(directory=IMAGE_DIR), name="images")
 @app.get("/")
 async def index(request: Request):
     """Serve the main page with prompt form and image gallery."""
-    await gallery(request)
+    return await gallery(request)  # Just redirect to gallery view
 
 
 @app.get("/gallery")
@@ -76,7 +75,6 @@ async def gallery(
 
     # Return the gallery content
     with render_base_layout():
-        render_prompt_form()
         render_image_gallery(
             specs_with_images, page, total_pages, sort_by, liked_only=liked_only
         )
@@ -131,8 +129,7 @@ async def check_status(generation_id: str):
             text("Generation not found")
     else:
         # Just render the image status without the prompt info
-        with tag.div(classes="relative"):
-            render_image_or_status(image)
+        render_image_or_status(image)
 
 
 @app.post("/add-prompt-part")
@@ -154,7 +151,7 @@ async def add_prompt_part(request: Request):
     else:
         prompt = ", ".join(all_parts)  # Join with commas for non-sentences
 
-    return render_prompt_form(prompt)
+    return render_prompt_form_content(prompt)
 
 
 @app.post("/modify-prompt")
@@ -173,19 +170,19 @@ async def modify_prompt(request: Request, modification: str = Form(...)):
         prompt = ", ".join(prompt_parts)
 
         if not prompt:
-            return render_prompt_form()
+            return render_prompt_form_content()
 
         modified_prompt = await generate_modified_prompt(modification, prompt)
 
         if modified_prompt:
-            return render_prompt_form(modified_prompt)
+            return render_prompt_form_content(modified_prompt)
         else:
             print("No modified prompt found")
-            return render_prompt_form(prompt)
+            return render_prompt_form_content(prompt)
 
     except Exception as e:
         print(f"Error modifying prompt: {e}")
-        return render_prompt_form(prompt)
+        return render_prompt_form_content(prompt)
 
 
 @app.post("/copy-prompt/{uuid_str}")
@@ -193,8 +190,8 @@ async def copy_prompt(uuid_str: str):
     """Get the prompt for an image and return a new form with it."""
     prompt = get_prompt_by_uuid(uuid_str)
     if prompt:
-        return render_prompt_form(prompt)
-    return render_prompt_form()
+        return render_prompt_form_content(prompt)
+    return render_prompt_form_content()
 
 
 @app.post("/regenerate/{spec_id}")
@@ -247,8 +244,8 @@ async def copy_spec(spec_id: int):
         row = cur.fetchone()
         if row:
             prompt, model, aspect_ratio = row
-            return render_prompt_form(prompt, model, aspect_ratio)
-    return render_prompt_form()
+            return render_prompt_form_content(prompt, model, aspect_ratio)
+    return render_prompt_form_content()
 
 
 @app.get("/slideshow")

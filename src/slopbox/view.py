@@ -3,10 +3,11 @@ from contextlib import contextmanager
 from typing import List, Optional, Tuple
 from urllib.parse import urlencode
 
-from tagflow import attr, classes, html, tag, text
+from tagflow import attr, html, tag, text
 
 from slopbox.base import (
     ASPECT_TO_RECRAFT,
+    DEFAULT_MODEL,
     MODELS,
 )
 from slopbox.fastapi import app
@@ -47,7 +48,8 @@ def render_prompt_pills(image: Image):
                 "rounded",
             ],
             hx_post=app.url_path_for("copy_prompt", uuid_str=image.uuid),
-            hx_target="#prompt-container",
+            hx_target="#prompt-form",
+            hx_swap="outerHTML",
         ):
             text("Copy Prompt")
 
@@ -217,7 +219,8 @@ def render_copy_settings_button(spec):
     with tag.button(
         classes=Styles.spec_action_button,
         hx_post=app.url_path_for("copy_spec", spec_id=spec.id),
-        hx_target="#prompt-container",
+        hx_target="#prompt-form",
+        hx_swap="outerHTML",
     ):
         text("Copy Settings")
 
@@ -276,7 +279,7 @@ def render_spec_block(spec: ImageSpec, images: List[Image], liked_only: bool = F
     render_spec_images(spec, images, liked_only)
 
 
-@html.div("h-full overflow-y-auto flex-1 flex flex-col items-stretch gap-1")
+@html.div("h-full overflow-y-auto flex-1 flex flex-col items-stretch")
 def render_image_gallery(
     specs_with_images: List[Tuple[ImageSpec, List[Image]]],
     current_page: int,
@@ -284,16 +287,27 @@ def render_image_gallery(
     sort_by: str = "recency",
     liked_only: bool = False,
 ):
-    """Render the image gallery with pagination controls."""
-    # Render gallery controls
-    render_gallery_controls(sort_by, liked_only)
+    """Render the image gallery with navigation bar and content."""
+    # Render top navigation bar containing prompt form and gallery controls
+    with tag.div(
+        classes=[
+            "sticky top-0 z-50",
+            "bg-neutral-200 shadow-md",
+            "flex items-center justify-between",
+            "px-4 py-2 gap-4",
+        ]
+    ):
+        with tag.div(classes="flex items-center gap-4"):
+            render_sort_options(sort_by, liked_only)
+            render_slideshow_link()
 
-    # Render specs and their images
-    with tag.div(id="gallery-container"):
+        render_prompt_form_dropdown()
+
+    with tag.div(id="gallery-container", classes="p-2"):
         for spec, images in specs_with_images:
             render_spec_block(spec, images, liked_only)
 
-    # Render pagination controls
+    # Pagination controls at the bottom
     render_pagination_controls(current_page, total_pages, sort_by, liked_only)
 
 
@@ -310,116 +324,73 @@ def make_gallery_url(page: int, sort_by: str, liked_only: bool) -> str:
 
 def render_pagination_controls(current_page, total_pages, sort_by, liked_only):
     """Render the pagination controls."""
-    with tag.div(classes=["flex justify-end gap-4"]):
-        render_previous_page_button(current_page, sort_by, liked_only)
-        with tag.span(classes=["text-sm text-neutral-500"]):
+    with tag.div(classes=["flex justify-end gap-4 p-4"]):
+        if current_page > 1:
+            with tag.a(
+                href=make_gallery_url(current_page - 1, sort_by, liked_only),
+                classes=Styles.pagination_button,
+            ):
+                text("← Previous")
+
+        with tag.span(classes=Styles.pagination_text):
             text(f"Page {current_page} of {total_pages}")
-        render_next_page_button(current_page, total_pages, sort_by, liked_only)
 
-
-def render_previous_page_button(current_page, sort_by, liked_only):
-    """Render the previous page button."""
-    if current_page > 1:
-        with tag.a(
-            href=make_gallery_url(current_page - 1, sort_by, liked_only),
-            classes=["text-sm text-neutral-500 hover:text-neutral-800"],
-        ):
-            text("← Previous")
-
-
-def render_next_page_button(current_page, total_pages, sort_by, liked_only):
-    """Render the next page button."""
-    if current_page < total_pages:
-        with tag.a(
-            href=make_gallery_url(current_page + 1, sort_by, liked_only),
-            classes=["text-sm text-neutral-500 hover:text-neutral-800"],
-        ):
-            text("Next →")
-
-
-def render_gallery_controls(sort_by, liked_only):
-    """Render the gallery controls."""
-    with tag.div(
-        classes=[
-            "flex justify-between items-center",
-            "bg-neutral-200",
-            "px-4 py-1",
-        ],
-    ):
-        render_sort_options(sort_by, liked_only)
-        render_slideshow_link()
+        if current_page < total_pages:
+            with tag.a(
+                href=make_gallery_url(current_page + 1, sort_by, liked_only),
+                classes=Styles.pagination_button,
+            ):
+                text("Next →")
 
 
 def render_sort_options(sort_by, liked_only):
     """Render the sort options."""
-    with tag.div(classes=["flex items-center gap-4"]):
-        # Sort by recency
-        with tag.a(
-            href=make_gallery_url(1, "recency", liked_only),
-            classes=[
-                "text-xs",
-                "px-3 py-1",
-                "rounded",
-                "bg-neutral-300 hover:bg-neutral-400"
-                if sort_by == "recency"
-                else "hover:bg-neutral-300",
-            ],
-        ):
-            text("Most Recent")
-
-        # Sort by image count
-        with tag.a(
-            href=make_gallery_url(1, "image_count", liked_only),
-            classes=[
-                "text-xs",
-                "px-3 py-1",
-                "rounded",
-                "bg-neutral-300 hover:bg-neutral-400"
-                if sort_by == "image_count"
-                else "hover:bg-neutral-300",
-            ],
-        ):
-            text("Most Generated")
-
-        # Liked filter
-        with tag.a(
-            href=make_gallery_url(1, sort_by, not liked_only),
-            classes=[
-                "text-xs",
-                "px-3 py-1",
-                "rounded",
-                "bg-amber-100 hover:bg-amber-200"
-                if liked_only
-                else "hover:bg-neutral-300",
-            ],
-        ):
-            text("♥ Liked Only" if not liked_only else "Show All")
-
-
-@html.div("flex flex-col gap-1")
-def render_model_selection(model):
-    with tag.label(classes=["text-sm font-medium"]):
-        text("Model")
-    with tag.div(classes=["flex flex-wrap gap-4"]):
-        for model_name, model_id in MODELS.items():
-            with tag.label(classes=["flex items-center gap-2", "text-xs"]):
-                with tag.input(
-                    classes="w-4 h-4",
-                    type="radio",
-                    name="model",
-                    value=model_id,
-                    checked=(
-                        model_id == model
-                        if model
-                        else model_id == MODELS["Flux 1.1 Pro Ultra"]
-                    ),
+    with tag.div(classes=["flex items-center gap-6"]):
+        # Sort controls group
+        with tag.div(classes=["flex items-center gap-2"]):
+            with tag.span(classes=["text-xs text-neutral-600"]):
+                text("Sort by:")
+            # Sort buttons group
+            with tag.div(classes=["flex"]):
+                # Sort by recency
+                with tag.a(
+                    href=make_gallery_url(1, "recency", liked_only),
+                    classes=Styles.sort_button_active
+                    if sort_by == "recency"
+                    else Styles.sort_button,
                 ):
-                    pass
-                text(model_name)
+                    text("Most Recent")
+
+                # Sort by image count
+                with tag.a(
+                    href=make_gallery_url(1, "image_count", liked_only),
+                    classes=Styles.sort_button_active
+                    if sort_by == "image_count"
+                    else Styles.sort_button,
+                ):
+                    text("Most Generated")
+
+        # Filter controls
+        with tag.div(classes=["flex items-center gap-2"]):
+            with tag.span(classes=["text-xs text-neutral-600"]):
+                text("Filters:")
+            # Liked filter
+            with tag.a(
+                href=make_gallery_url(1, sort_by, not liked_only),
+                classes=Styles.filter_button_active
+                if liked_only
+                else Styles.filter_button,
+            ):
+                with tag.span(classes="text-sm"):
+                    text("♥")
+                text("Liked Only")
 
 
 @html.div(
-    classes=["flex flex-col gap-2", "w-full p-2"],
+    classes=[
+        "flex flex-col gap-2",
+        "w-full",
+    ],
     id="prompt-inputs",
 )
 def render_prompt_inputs(prompt):
@@ -453,12 +424,10 @@ def render_prompt_inputs(prompt):
 @html.div(classes=["flex gap-2 w-full"])
 def render_prompt_part_input(index: int = 0, content: str = ""):
     """Render a single prompt part input with remove button."""
-    rows_by_char_count = max(1, len(content) // 70)
     with tag.textarea(
         name=f"prompt_part_{index}",
         placeholder="Enter part of the prompt",
         classes=Styles.input_primary,
-        rows=f"{rows_by_char_count}",
     ):
         text(content)
     with tag.button(
@@ -468,41 +437,41 @@ def render_prompt_part_input(index: int = 0, content: str = ""):
         text("×")
 
 
-@html.div(
-    classes=[
-        "flex flex-col",
-        "self-start",
-        "relative",
-        "gap-4 px-2",
-        "bg-neutral-200",
-        #        "border-1 border-t-0 border-neutral-500",
-        #        "shadow-xl",
-    ],
-    id="prompt-container",
-)
-def render_prompt_form(prompt: str = None, model: str = None, aspect_ratio: str = None):
-    """Render the prompt form with generation options and modification form."""
-    with tag.details(classes=["w-full"], open=True):
-        with tag.summary(
-            classes=[
-                "cursor-pointer",
-                "text-sm",
-                "font-medium",
-                "p-2",
-            ]
-        ):
-            text("New")
-        # Main generation form
-        with tag.form(
-            classes=["flex flex-col gap-4", "w-full", "mt-2"],
-            hx_post=app.url_path_for("generate"),
-            hx_target="#gallery-container",
-            hx_swap="afterbegin settle:0.5s",
-            hx_disabled_elt="input, button, select",
-        ):
-            render_generation_options(model, aspect_ratio)
-            render_prompt_inputs(prompt)
-        render_prompt_modification_form()
+# @html.div(
+#     classes=[
+#         "flex flex-col",
+#         "self-start",
+#         "relative",
+#         "gap-4 px-2",
+#         "bg-neutral-200",
+#         #        "border-1 border-t-0 border-neutral-500",
+#         #        "shadow-xl",
+#     ],
+#     id="prompt-container",
+# )
+# def render_prompt_form(prompt: str = None, model: str = None, aspect_ratio: str = None):
+#     """Render the prompt form with generation options and modification form."""
+#     with tag.details(classes=["w-full"], open=True):
+#         with tag.summary(
+#             classes=[
+#                 "cursor-pointer",
+#                 "text-sm",
+#                 "font-medium",
+#                 "p-2",
+#             ]
+#         ):
+#             text("New")
+#         # Main generation form
+#         with tag.form(
+#             classes=["flex flex-col gap-4", "w-full", "mt-2"],
+#             hx_post=app.url_path_for("generate"),
+#             hx_target="#gallery-container",
+#             hx_swap="afterbegin settle:0.5s",
+#             hx_disabled_elt="input, button, select",
+#         ):
+#             render_generation_options(model, aspect_ratio)
+#             render_prompt_inputs(prompt)
+#         render_prompt_modification_form()
 
 
 @html.div(
@@ -596,52 +565,102 @@ def render_base_layout():
             yield
 
 
-@html.div(classes=["flex flex-col gap-4", "py-2 px-4"])
+@html.div(classes=["flex flex-col gap-2"])
 def render_generation_options(model: str = None, aspect_ratio: str = None):
-    render_model_selection(model)
-    render_aspect_ratio_selection(aspect_ratio)
-    render_style_selection()
+    # Model selection
+    with tag.fieldset(classes=["flex flex-col gap-2"]):
+        with tag.span(classes=["text-xs text-neutral-600"]):
+            text("Model")
+        with tag.div(classes=["flex gap-4"]):
+            for model_name, model_id in MODELS.items():
+                is_checked = model_id == model if model else model_id == DEFAULT_MODEL
+                with tag.div(classes=["flex items-center"]):
+                    with tag.input(
+                        id=f"model-{model_id}",
+                        type="radio",
+                        name="model",
+                        value=model_id,
+                        checked=is_checked,
+                        classes=[
+                            "relative size-4",
+                            "appearance-none rounded-full",
+                            "border border-neutral-300 bg-white",
+                            "before:absolute before:inset-1",
+                            "before:rounded-full before:bg-white",
+                            "checked:border-neutral-600 checked:bg-neutral-600",
+                            "focus-visible:outline focus-visible:outline-2",
+                            "focus-visible:outline-offset-2 focus-visible:outline-neutral-600",
+                            "[&:not(:checked)]:before:hidden",
+                        ],
+                    ):
+                        pass
+                    with tag.label(
+                        for_=f"model-{model_id}",
+                        classes=["ml-3 text-sm font-medium text-neutral-900"],
+                    ):
+                        text(model_name)
 
+    # Aspect ratio selection
+    with tag.fieldset(classes=["flex flex-col gap-2"]):
+        with tag.span(classes=["text-xs text-neutral-600"]):
+            text("Aspect Ratio")
+        with tag.div(classes=["flex gap-2 justify-start"]):
+            for ratio in ASPECT_TO_RECRAFT.keys():
+                is_checked = ratio == aspect_ratio if aspect_ratio else ratio == "1:1"
+                # Calculate preview dimensions
+                w, h = map(float, ratio.split(":"))
+                preview_size = 48  # Base size in pixels
+                if w > h:
+                    scaled_width = preview_size
+                    scaled_height = int(preview_size * (h / w))
+                else:
+                    scaled_height = preview_size
+                    scaled_width = int(preview_size * (w / h))
 
-@html.div(classes=["flex flex-col gap-1"])
-def render_style_selection():
-    with tag.label(classes=["text-sm font-medium"]):
-        text("Style")
-    with tag.div(classes=["flex gap-4"]):
-        for style in ["natural", "studio", "illustration", "flash"]:
-            with tag.label(classes=["flex items-center gap-2", "text-xs"]):
-                with tag.input(
-                    classes="w-4 h-4",
-                    type="radio",
-                    name="style",
-                    value=style,
-                    checked=(style == "natural"),
+                with tag.label(
+                    classes=[
+                        "flex flex-col items-center justify-end",
+                        "cursor-pointer",
+                        "relative",  # For peer positioning
+                        "p-2",  # Padding for hover/click area
+                    ]
                 ):
-                    pass
-                text(style.capitalize())
-
-
-@html.div(classes=["flex flex-col gap-1"])
-def render_aspect_ratio_selection(aspect_ratio):
-    with tag.label(classes=["text-sm font-medium"]):
-        text("Aspect Ratio")
-    with tag.div(classes=["flex flex-wrap gap-4"]):
-        for ratio in ASPECT_TO_RECRAFT.keys():
-            with tag.label(classes=["flex items-center gap-2", "text-xs"]):
-                with tag.input(
-                    classes="w-4 h-4",
-                    type="radio",
-                    name="aspect_ratio",
-                    value=ratio,
-                    checked=(ratio == aspect_ratio if aspect_ratio else ratio == "1:1"),
-                ):
-                    pass
-                text(ratio)
+                    with tag.input(
+                        type="radio",
+                        name="aspect_ratio",
+                        value=ratio,
+                        checked=is_checked,
+                        classes=[
+                            "appearance-none",
+                            "absolute",
+                            "peer",
+                        ],
+                    ):
+                        pass
+                    # Preview box that changes style when radio is checked
+                    with tag.div(
+                        classes=[
+                            "rounded",
+                            "transition-all duration-150",
+                            # Selected state via peer
+                            "peer-checked:bg-neutral-800",
+                            "peer-checked:ring-2 peer-checked:ring-neutral-800",
+                            # Unselected state
+                            "bg-neutral-500",
+                            "ring-1 ring-neutral-500",
+                            # Hover states
+                            "hover:bg-neutral-600 hover:ring-neutral-600",
+                        ],
+                        style=f"width: {scaled_width}px; height: {scaled_height}px",
+                    ):
+                        pass
+                    with tag.span(classes=["mt-1 text-xs text-neutral-600"]):
+                        text(ratio)
 
 
 @html.form(
-    classes=["flex flex-col gap-2", "p-2"],
-    hx_target="#prompt-container",
+    classes=["flex flex-col gap-2", "p-4"],
+    hx_target="#prompt-form",
     hx_include="[name^='prompt_part_']",
     hx_swap="outerHTML",
 )
@@ -665,10 +684,8 @@ def render_prompt_modification_form():
 
 @html.a(
     classes=[
-        "text-xs",
-        "px-3 py-1",
+        *Styles.button_secondary,
         "bg-amber-100 hover:bg-amber-200",
-        "rounded",
         "flex items-center gap-1",
     ],
 )
@@ -677,3 +694,43 @@ def render_slideshow_link():
     with tag.span(classes="text-sm"):
         text("♥")
     text("Slideshow")
+
+
+def render_prompt_form_dropdown(
+    prompt: str = None, model: str = None, aspect_ratio: str = None
+):
+    """Render the prompt form in a dropdown button."""
+    with tag.details(classes="relative"):
+        with tag.summary(classes=Styles.button_primary):
+            text("New Image")
+
+        # Dropdown content
+        with tag.div(
+            classes=[
+                "absolute top-full right-0 mt-4",
+                "bg-neutral-200",
+                "shadow-lg",
+                "border border-neutral-400",
+                "w-[500px]",
+                "z-50",
+            ]
+        ):
+            render_prompt_form_content(prompt, model, aspect_ratio)
+
+
+@html.div(id="prompt-form")
+def render_prompt_form_content(
+    prompt: str = None, model: str = None, aspect_ratio: str = None
+):
+    """Render the prompt form content without the container."""
+    with tag.form(
+        classes=["flex flex-col gap-4", "p-4"],
+        hx_post=app.url_path_for("generate"),
+        hx_target="#gallery-container",
+        hx_swap="afterbegin settle:0.5s",
+        hx_disabled_elt="input, button, select",
+    ):
+        render_generation_options(model, aspect_ratio)
+        render_prompt_inputs(prompt)
+
+    render_prompt_modification_form()

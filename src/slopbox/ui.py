@@ -23,6 +23,7 @@ class Styles:
         "bg-white",
         "border border-neutral-500",
         "placeholder:text-neutral-600 placeholder:italic",
+        "field-sizing-content",
     ]
 
     spec_action_button = [
@@ -39,3 +40,64 @@ class Styles:
     ]
 
     pagination_text = ["text-neutral-700"]
+
+    sort_button = [
+        "px-3 py-1",
+        "text-xs text-neutral-800",
+        "bg-white",
+        "ring-1 ring-inset ring-neutral-400",
+        "hover:bg-neutral-100",
+        "first:rounded-l last:rounded-r",
+        "-ml-[1px]",  # Overlap borders
+    ]
+
+    sort_button_active = [
+        *sort_button,
+        "bg-neutral-300",
+        "hover:bg-neutral-300",
+        "relative",  # Ensure border shows on top
+        "z-10",
+    ]
+
+    filter_button = [
+        "px-3 py-1",
+        "text-xs text-neutral-800",
+        "bg-white",
+        "rounded-full",
+        "ring-1 ring-inset ring-neutral-400",
+        "hover:bg-neutral-100",
+        "flex items-center gap-1",
+    ]
+
+    filter_button_active = [
+        *filter_button,
+        "bg-amber-100",
+        "hover:bg-amber-200",
+        "ring-amber-400",
+    ]
+
+    radio_button = [
+        "px-3 py-1.5",
+        "text-xs text-neutral-800",
+        "ring-1 ring-inset ring-neutral-400",
+        "first:rounded-l last:rounded-r",
+        "-ml-[1px]",
+        "cursor-pointer",
+        "group",
+        "transition-colors",
+        "flex-1",
+    ]
+
+    radio_button_inactive = [
+        *radio_button,
+        "bg-white",
+        "hover:bg-neutral-200",
+    ]
+
+    radio_button_active = [
+        *radio_button,
+        "bg-neutral-300",
+        "hover:bg-neutral-300",
+        "relative",
+        "z-10",
+    ]

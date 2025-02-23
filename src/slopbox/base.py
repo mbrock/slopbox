@@ -2,18 +2,20 @@ import os
 import sqlite3
 
 MODELS = {
-    "Flux 1.1 Pro Ultra": "black-forest-labs/flux-1.1-pro-ultra",
+    "Flux Ultra": "black-forest-labs/flux-1.1-pro-ultra",
     "Flux Dev": "black-forest-labs/flux-dev",
     "Flux Schnell": "black-forest-labs/flux-schnell",
     "Recraft v3": "recraft-ai/recraft-v3",
 }
 
+DEFAULT_MODEL = MODELS["Flux Ultra"]
+
 ASPECT_TO_RECRAFT = {
-    "1:1": "1024x1024",  # Square
     "16:9": "1820x1024",  # Widescreen
-    "9:16": "1024x1820",  # Portrait
     "4:3": "1365x1024",  # Standard
+    "1:1": "1024x1024",  # Square
     "3:4": "1024x1365",  # Portrait standard
+    "9:16": "1024x1820",  # Portrait
 }
 
 RECRAFT_SIZES = [
