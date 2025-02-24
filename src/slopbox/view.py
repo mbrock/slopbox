@@ -24,29 +24,29 @@ from slopbox.ui import Styles
 def render_prompt_pills(image: Image):
     """Render the prompt pills for an image."""
     # Prompt
-    with tag.div(classes=["flex flex-wrap gap-2"]):
+    with tag.div("flex flex-wrap gap-2"):
         for part in split_prompt(image.spec.prompt):
             with tag.span(
-                classes=["bg-neutral-200", "px-2 py-1", "rounded text-sm"],
+                "bg-neutral-200",
+                "px-2 py-1",
+                "rounded text-sm",
             ):
                 text(part)
 
     # Model and aspect ratio info
-    with tag.div(classes=["flex gap-4", "text-xs text-neutral-500 mt-2"]):
+    with tag.div("flex gap-4 text-xs text-neutral-500 mt-2"):
         with tag.span():
             text(f"Model: {image.spec.model}")
         with tag.span():
             text(f"Aspect: {image.spec.aspect_ratio}")
 
     # Action buttons
-    with tag.div(classes=["flex gap-2 mt-2"]):
+    with tag.div("flex gap-2 mt-2"):
         with tag.button(
-            classes=[
-                "text-xs",
-                "px-2 py-1",
-                "bg-neutral-200 hover:bg-neutral-300",
-                "rounded",
-            ],
+            "text-xs",
+            "px-2 py-1",
+            "bg-neutral-200 hover:bg-neutral-300",
+            "rounded",
             hx_post=app.url_path_for("copy_prompt", uuid_str=image.uuid),
             hx_target="#prompt-form",
             hx_swap="outerHTML",
@@ -54,12 +54,10 @@ def render_prompt_pills(image: Image):
             text("Copy Prompt")
 
         with tag.button(
-            classes=[
-                "text-xs",
-                "px-2 py-1",
-                "bg-neutral-200 hover:bg-neutral-300",
-                "rounded",
-            ],
+            "text-xs",
+            "px-2 py-1",
+            "bg-neutral-200 hover:bg-neutral-300",
+            "rounded",
             hx_post=app.url_path_for("regenerate", spec_id=image.spec.id),
             hx_target="#image-container",
             hx_swap="afterbegin settle:0.5s",
@@ -87,80 +85,70 @@ def render_pending_image(image):
     aspect_style = f"aspect-[{image.spec.aspect_ratio.replace(':', '/')}]"
 
     with tag.div(
-        classes=[
-            size_classes,
-            aspect_style,
-            "bg-white",
-            "p-2",
-            "shadow-xl shadow-neutral-500",
-            "border border-neutral-500",
-            "z-10",
-            "flex items-center justify-center",
-        ],
+        size_classes,
+        aspect_style,
+        "bg-white",
+        "p-2",
+        "shadow-xl shadow-neutral-500",
+        "border border-neutral-500",
+        "z-10",
+        "flex items-center justify-center",
     ):
         attr("hx-get", app.url_path_for("check_status", generation_id=image.uuid))
         attr("hx-trigger", "load delay:3s")
         attr("hx-swap", "outerHTML")
-        with tag.span(classes="text-gray-500"):
+        with tag.span("text-gray-500"):
             text("Generating..." if image.status == "pending" else "Error")
 
 
 def render_complete_image(image: Image):
     with tag.div(
-        classes=["relative group", "cursor-pointer"],
+        "relative group cursor-pointer",
         hx_post=app.url_path_for("toggle_like_endpoint", image_uuid=image.uuid),
         hx_target=f"#like-indicator-{image.uuid}",
         hx_swap="outerHTML",
     ):
         render_like_affordance(image)
         with tag.img(
+            "max-w-256 max-h-256",
+            "object-contain flex-0",
+            "bg-white p-2",
+            "shadow-xl shadow-neutral-500",
+            "border-amber-200 border-4" if image.liked else "border border-neutral-500",
+            "z-10",
             src=f"/images/{os.path.basename(image.filepath)}",
             alt=image.spec.prompt,
-            classes=[
-                "max-w-256 max-h-256",
-                "object-contain flex-0",
-                "bg-white p-2",
-                "shadow-xl shadow-neutral-500",
-                "border-amber-200 border-4"
-                if image.liked
-                else "border border-neutral-500",
-                "z-10",
-            ],
         ):
             pass
 
 
 def render_like_affordance(image):
     with tag.div(
+        "absolute top-2 right-2",
+        "p-2 rounded-full",
+        "opacity-0 group-hover:opacity-100 transition-opacity",
+        "z-20 pointer-events-none",
+        "bg-amber-100 text-amber-600"
+        if image.liked
+        else "bg-white/80 text-neutral-600",
         id=f"like-indicator-{image.uuid}",
-        classes=[
-            "absolute top-2 right-2",
-            "p-2 rounded-full",
-            "opacity-0 group-hover:opacity-100 transition-opacity",
-            "z-20 pointer-events-none",
-            "bg-amber-100 text-amber-600"
-            if image.liked
-            else "bg-white/80 text-neutral-600",
-        ],
     ):
-        with tag.span(classes="text-xl"):
+        with tag.span("text-xl"):
             text("♥")
 
 
 def render_error_image(image):
     with tag.div(
-        classes=[
-            "w-256",
-            "aspect-square",
-            "bg-white",
-            "p-2",
-            "shadow-xl shadow-neutral-500",
-            "border border-red-500",
-            "z-10",
-            "flex items-center justify-center",
-        ],
+        "w-256",
+        "aspect-square",
+        "bg-white",
+        "p-2",
+        "shadow-xl shadow-neutral-500",
+        "border border-red-500",
+        "z-10",
+        "flex items-center justify-center",
     ):
-        with tag.span(classes="text-red-500"):
+        with tag.span("text-red-500"):
             text("Error")
 
 
@@ -182,33 +170,31 @@ def render_single_image(image: Image):
 def render_spec_header(spec: ImageSpec):
     """Render the header for a spec showing prompt and generation options."""
     # Actions
-    with tag.div(classes=["flex gap-2 mb-2 justify-between"]):
+    with tag.div("flex gap-2 mb-2 justify-between"):
         render_spec_action_buttons(spec)
 
-        with tag.div(classes=["flex gap-4 items-baseline text-neutral-600"]):
+        with tag.div("flex gap-4 items-baseline text-neutral-600"):
             with tag.span():
                 text(spec.model)
             with tag.span():
                 text(spec.aspect_ratio)
-            with tag.span(classes=["text-neutral-800 font-mono"]):
+            with tag.span("text-neutral-800 font-mono"):
                 text(f"#{spec.id}")
 
     # Prompt display
-    with tag.div(classes=["flex flex-wrap gap-2"]):
+    with tag.div("flex flex-wrap gap-2"):
         for part in split_prompt(spec.prompt):
             with tag.span(
-                classes=[
-                    "bg-neutral-100",
-                    "px-3 py-1",
-                    "rounded-md text-sm",
-                    "border-l-4 border-b border-r border-neutral-400",
-                    "text-neutral-800",
-                ],
+                "bg-neutral-100",
+                "px-3 py-1",
+                "rounded-md text-sm",
+                "border-l-4 border-b border-r border-neutral-400",
+                "text-neutral-800",
             ):
                 text(part)
 
 
-@html.div(classes=["flex gap-2"])
+@html.div("flex gap-2")
 def render_spec_action_buttons(spec):
     render_copy_settings_button(spec)
     render_generate_new_button(spec)
@@ -217,7 +203,7 @@ def render_spec_action_buttons(spec):
 
 def render_copy_settings_button(spec):
     with tag.button(
-        classes=Styles.spec_action_button,
+        Styles.spec_action_button,
         hx_post=app.url_path_for("copy_spec", spec_id=spec.id),
         hx_target="#prompt-form",
         hx_swap="outerHTML",
@@ -227,7 +213,7 @@ def render_copy_settings_button(spec):
 
 def render_generate_new_button(spec):
     with tag.button(
-        classes=Styles.spec_action_button,
+        Styles.spec_action_button,
         hx_post=app.url_path_for("regenerate", spec_id=spec.id),
         hx_target=f"#spec-images-{spec.id}",
         hx_swap="afterbegin settle:0.5s",
@@ -237,7 +223,7 @@ def render_generate_new_button(spec):
 
 def render_slideshow_button(spec):
     with tag.a(
-        classes=Styles.spec_action_button,
+        Styles.spec_action_button,
         href=app.url_path_for("slideshow") + "?" + urlencode({"spec_id": spec.id}),
     ):
         text("Slideshow")
@@ -260,14 +246,12 @@ def render_spec_images(spec: ImageSpec, images: List[Image], liked_only: bool = 
 
     # If there are more images, show them in a collapsible section
     if len(filtered_images) > 4:
-        with tag.details(classes=["w-full mt-4"]):
+        with tag.details("w-full mt-4"):
             with tag.summary(
-                classes=[
-                    "cursor-pointer text-sm text-neutral-600 hover:text-neutral-800"
-                ]
+                "cursor-pointer text-sm text-neutral-600 hover:text-neutral-800"
             ):
                 text(f"Show {len(filtered_images) - 4} more images...")
-            with tag.div(classes=["flex flex-wrap gap-4 mt-4"]):
+            with tag.div("flex flex-wrap gap-4 mt-4"):
                 for image in filtered_images[4:]:
                     render_image_or_status(image)
 
@@ -290,20 +274,18 @@ def render_image_gallery(
     """Render the image gallery with navigation bar and content."""
     # Render top navigation bar containing prompt form and gallery controls
     with tag.div(
-        classes=[
-            "sticky top-0 z-50",
-            "bg-neutral-200 shadow-md",
-            "flex items-center justify-between",
-            "px-4 py-2 gap-4",
-        ]
+        "sticky top-0 z-50",
+        "bg-neutral-200 shadow-md",
+        "flex items-center justify-between",
+        "px-4 py-2 gap-4",
     ):
-        with tag.div(classes="flex items-center gap-4"):
+        with tag.div("flex items-center gap-4"):
             render_sort_options(sort_by, liked_only)
             render_slideshow_link()
 
         render_prompt_form_dropdown()
 
-    with tag.div(id="gallery-container", classes="p-2"):
+    with tag.div("p-2", id="gallery-container"):
         for spec, images in specs_with_images:
             render_spec_block(spec, images, liked_only)
 
@@ -324,73 +306,69 @@ def make_gallery_url(page: int, sort_by: str, liked_only: bool) -> str:
 
 def render_pagination_controls(current_page, total_pages, sort_by, liked_only):
     """Render the pagination controls."""
-    with tag.div(classes=["flex justify-end gap-4 p-4"]):
+    with tag.div("flex justify-end gap-4 p-4"):
         if current_page > 1:
             with tag.a(
+                Styles.pagination_button,
                 href=make_gallery_url(current_page - 1, sort_by, liked_only),
-                classes=Styles.pagination_button,
             ):
                 text("← Previous")
 
-        with tag.span(classes=Styles.pagination_text):
+        with tag.span(Styles.pagination_text):
             text(f"Page {current_page} of {total_pages}")
 
         if current_page < total_pages:
             with tag.a(
+                Styles.pagination_button,
                 href=make_gallery_url(current_page + 1, sort_by, liked_only),
-                classes=Styles.pagination_button,
             ):
                 text("Next →")
 
 
 def render_sort_options(sort_by, liked_only):
     """Render the sort options."""
-    with tag.div(classes=["flex items-center gap-6"]):
+    with tag.div("flex items-center gap-6"):
         # Sort controls group
-        with tag.div(classes=["flex items-center gap-2"]):
-            with tag.span(classes=["text-xs text-neutral-600"]):
+        with tag.div("flex items-center gap-2"):
+            with tag.span("text-xs text-neutral-600"):
                 text("Sort by:")
             # Sort buttons group
-            with tag.div(classes=["flex"]):
+            with tag.div("flex"):
                 # Sort by recency
                 with tag.a(
-                    href=make_gallery_url(1, "recency", liked_only),
-                    classes=Styles.sort_button_active
+                    Styles.sort_button_active
                     if sort_by == "recency"
                     else Styles.sort_button,
+                    href=make_gallery_url(1, "recency", liked_only),
                 ):
                     text("Most Recent")
 
                 # Sort by image count
                 with tag.a(
-                    href=make_gallery_url(1, "image_count", liked_only),
-                    classes=Styles.sort_button_active
+                    Styles.sort_button_active
                     if sort_by == "image_count"
                     else Styles.sort_button,
+                    href=make_gallery_url(1, "image_count", liked_only),
                 ):
                     text("Most Generated")
 
         # Filter controls
-        with tag.div(classes=["flex items-center gap-2"]):
-            with tag.span(classes=["text-xs text-neutral-600"]):
+        with tag.div("flex items-center gap-2"):
+            with tag.span("text-xs text-neutral-600"):
                 text("Filters:")
             # Liked filter
             with tag.a(
+                Styles.filter_button_active if liked_only else Styles.filter_button,
                 href=make_gallery_url(1, sort_by, not liked_only),
-                classes=Styles.filter_button_active
-                if liked_only
-                else Styles.filter_button,
             ):
-                with tag.span(classes="text-sm"):
+                with tag.span("text-sm"):
                     text("♥")
                 text("Liked Only")
 
 
 @html.div(
-    classes=[
-        "flex flex-col gap-2",
-        "w-full",
-    ],
+    "flex flex-col gap-2",
+    "w-full",
     id="prompt-inputs",
 )
 def render_prompt_inputs(prompt):
@@ -406,8 +384,8 @@ def render_prompt_inputs(prompt):
 
     next_index = len(prompt_parts)
     with tag.button(
+        Styles.button_secondary,
         type="button",
-        classes=Styles.button_secondary,
         hx_get=app.url_path_for("get_prompt_part", index=next_index),
         hx_target="this",
         hx_swap="beforebegin",
@@ -415,19 +393,19 @@ def render_prompt_inputs(prompt):
         text("Add prompt part")
 
     with tag.button(
+        Styles.button_primary,
         type="submit",
-        classes=Styles.button_primary,
     ):
         text("Generate")
 
 
-@html.div(classes=["flex gap-2 w-full"])
+@html.div("flex gap-2 w-full")
 def render_prompt_part_input(index: int = 0, content: str = ""):
     """Render a single prompt part input with remove button."""
     with tag.textarea(
+        Styles.input_primary,
         name=f"prompt_part_{index}",
         placeholder="Enter part of the prompt",
-        classes=Styles.input_primary,
     ):
         text(content)
     with tag.button(
@@ -437,51 +415,12 @@ def render_prompt_part_input(index: int = 0, content: str = ""):
         text("×")
 
 
-# @html.div(
-#     classes=[
-#         "flex flex-col",
-#         "self-start",
-#         "relative",
-#         "gap-4 px-2",
-#         "bg-neutral-200",
-#         #        "border-1 border-t-0 border-neutral-500",
-#         #        "shadow-xl",
-#     ],
-#     id="prompt-container",
-# )
-# def render_prompt_form(prompt: str = None, model: str = None, aspect_ratio: str = None):
-#     """Render the prompt form with generation options and modification form."""
-#     with tag.details(classes=["w-full"], open=True):
-#         with tag.summary(
-#             classes=[
-#                 "cursor-pointer",
-#                 "text-sm",
-#                 "font-medium",
-#                 "p-2",
-#             ]
-#         ):
-#             text("New")
-#         # Main generation form
-#         with tag.form(
-#             classes=["flex flex-col gap-4", "w-full", "mt-2"],
-#             hx_post=app.url_path_for("generate"),
-#             hx_target="#gallery-container",
-#             hx_swap="afterbegin settle:0.5s",
-#             hx_disabled_elt="input, button, select",
-#         ):
-#             render_generation_options(model, aspect_ratio)
-#             render_prompt_inputs(prompt)
-#         render_prompt_modification_form()
-
-
 @html.div(
-    classes=[
-        "h-screen w-screen",
-        "flex flex-col",
-        "items-center justify-center",
-        "relative",
-        "bg-stone-900",
-    ],
+    "h-screen w-screen",
+    "flex flex-col",
+    "items-center justify-center",
+    "relative",
+    "bg-stone-900",
     id="slideshow-container",
 )
 def render_slideshow(
@@ -494,7 +433,11 @@ def render_slideshow(
     render_slideshow_content(image, image_count, spec_id, liked_only)
 
 
-@html.div(classes=["flex flex-col", "items-center justify-center", "relative"])
+@html.div(
+    "flex flex-col",
+    "items-center justify-center",
+    "relative",
+)
 def render_slideshow_content(
     image: Optional[Image],
     image_count: Optional[int] = None,
@@ -520,31 +463,19 @@ def render_slideshow_content(
 
     if image and image.status == "complete" and image.filepath:
         with tag.div(
+            "bg-white rounded-lg shadow-2xl shadow-neutral-700",
             id="image-container",
-            classes=["bg-white", "rounded-lg", "shadow-2xl shadow-neutral-700"],
         ):
             # Image with padding
             with tag.img(
-                classes=["object-contain", "h-screen"],
+                "object-contain h-screen",
                 src=f"/images/{os.path.basename(image.filepath)}",
                 alt=image.spec.prompt,
             ):
                 pass
     else:
-        with tag.div(classes=["text-white", "text-2xl"]):
+        with tag.div("text-white text-2xl"):
             text("No images available")
-
-
-@html.div("flex gap-2")
-def render_image_count_filters(sort_by, min_images, liked_only):
-    for count in [0, 2, 4, 8]:
-        url = make_gallery_url(1, sort_by, count, liked_only)
-        with tag.a(
-            href=url,
-            hx_get=url,
-            hx_target="#gallery-container",
-        ):
-            text("All" if count == 0 else f"{count}+")
 
 
 def render_cdn_includes():
@@ -565,23 +496,18 @@ def render_base_layout():
             yield
 
 
-@html.div(classes=["flex flex-col gap-2"])
+@html.div("flex flex-col gap-2")
 def render_generation_options(model: str = None, aspect_ratio: str = None):
     # Model selection
-    with tag.fieldset(classes=["flex flex-col gap-2"]):
-        with tag.span(classes=["text-xs text-neutral-600"]):
+    with tag.fieldset("flex flex-col gap-2"):
+        with tag.span("text-xs text-neutral-600"):
             text("Model")
-        with tag.div(classes=["flex gap-4"]):
+        with tag.div("flex gap-4"):
             for model_name, model_id in MODELS.items():
                 is_checked = model_id == model if model else model_id == DEFAULT_MODEL
-                with tag.div(classes=["flex items-center"]):
+                with tag.div("flex items-center"):
                     with tag.input(
-                        id=f"model-{model_id}",
-                        type="radio",
-                        name="model",
-                        value=model_id,
-                        checked=is_checked,
-                        classes=[
+                        [
                             "relative size-4",
                             "appearance-none rounded-full",
                             "border border-neutral-300 bg-white",
@@ -592,19 +518,24 @@ def render_generation_options(model: str = None, aspect_ratio: str = None):
                             "focus-visible:outline-offset-2 focus-visible:outline-neutral-600",
                             "[&:not(:checked)]:before:hidden",
                         ],
+                        id=f"model-{model_id}",
+                        type="radio",
+                        name="model",
+                        value=model_id,
+                        checked=is_checked,
                     ):
                         pass
                     with tag.label(
+                        "ml-3 text-sm font-medium text-neutral-900",
                         for_=f"model-{model_id}",
-                        classes=["ml-3 text-sm font-medium text-neutral-900"],
                     ):
                         text(model_name)
 
     # Aspect ratio selection
-    with tag.fieldset(classes=["flex flex-col gap-2"]):
-        with tag.span(classes=["text-xs text-neutral-600"]):
+    with tag.fieldset("flex flex-col gap-2"):
+        with tag.span("text-xs text-neutral-600"):
             text("Aspect Ratio")
-        with tag.div(classes=["flex gap-2 justify-start"]):
+        with tag.div("flex gap-2 justify-start"):
             for ratio in ASPECT_TO_RECRAFT.keys():
                 is_checked = ratio == aspect_ratio if aspect_ratio else ratio == "1:1"
                 # Calculate preview dimensions
@@ -618,48 +549,37 @@ def render_generation_options(model: str = None, aspect_ratio: str = None):
                     scaled_width = int(preview_size * (w / h))
 
                 with tag.label(
-                    classes=[
-                        "flex flex-col items-center justify-end",
-                        "cursor-pointer",
-                        "relative",  # For peer positioning
-                        "p-2",  # Padding for hover/click area
-                    ]
+                    "flex flex-col items-center justify-end cursor-pointer relative p-2",
                 ):
                     with tag.input(
+                        "appearance-none absolute peer",
                         type="radio",
                         name="aspect_ratio",
                         value=ratio,
                         checked=is_checked,
-                        classes=[
-                            "appearance-none",
-                            "absolute",
-                            "peer",
-                        ],
                     ):
                         pass
                     # Preview box that changes style when radio is checked
                     with tag.div(
-                        classes=[
-                            "rounded",
-                            "transition-all duration-150",
-                            # Selected state via peer
-                            "peer-checked:bg-neutral-800",
-                            "peer-checked:ring-2 peer-checked:ring-neutral-800",
-                            # Unselected state
-                            "bg-neutral-500",
-                            "ring-1 ring-neutral-500",
-                            # Hover states
-                            "hover:bg-neutral-600 hover:ring-neutral-600",
-                        ],
+                        "rounded",
+                        "transition-all duration-150",
+                        # Selected state via peer
+                        "peer-checked:bg-neutral-800",
+                        "peer-checked:ring-2 peer-checked:ring-neutral-800",
+                        # Unselected state
+                        "bg-neutral-500",
+                        "ring-1 ring-neutral-500",
+                        # Hover states
+                        "hover:bg-neutral-600 hover:ring-neutral-600",
                         style=f"width: {scaled_width}px; height: {scaled_height}px",
                     ):
                         pass
-                    with tag.span(classes=["mt-1 text-xs text-neutral-600"]):
+                    with tag.span("mt-1 text-xs text-neutral-600"):
                         text(ratio)
 
 
 @html.form(
-    classes=["flex flex-col gap-2", "p-4"],
+    "flex flex-col gap-2 p-4",
     hx_target="#prompt-form",
     hx_include="[name^='prompt_part_']",
     hx_swap="outerHTML",
@@ -667,31 +587,29 @@ def render_generation_options(model: str = None, aspect_ratio: str = None):
 def render_prompt_modification_form():
     attr("hx-post", app.url_path_for("modify_prompt"))
     with tag.textarea(
+        Styles.input_primary,
         type="text",
         name="modification",
         placeholder="How to modify the prompt (e.g., 'make it more detailed')",
-        classes=Styles.input_primary,
         rows="4",
     ):
         pass
 
     with tag.button(
+        Styles.button_primary,
         type="submit",
-        classes=Styles.button_primary,
     ):
         text("Modify")
 
 
 @html.a(
-    classes=[
-        *Styles.button_secondary,
-        "bg-amber-100 hover:bg-amber-200",
-        "flex items-center gap-1",
-    ],
+    Styles.button_secondary,
+    "bg-amber-100 hover:bg-amber-200",
+    "flex items-center gap-1",
 )
 def render_slideshow_link():
     attr("href", app.url_path_for("slideshow_liked"))
-    with tag.span(classes="text-sm"):
+    with tag.span("text-sm"):
         text("♥")
     text("Slideshow")
 
@@ -700,20 +618,18 @@ def render_prompt_form_dropdown(
     prompt: str = None, model: str = None, aspect_ratio: str = None
 ):
     """Render the prompt form in a dropdown button."""
-    with tag.details(classes="relative"):
-        with tag.summary(classes=Styles.button_primary):
+    with tag.details("relative"):
+        with tag.summary(Styles.button_primary):
             text("New Image")
 
         # Dropdown content
         with tag.div(
-            classes=[
-                "absolute top-full right-0 mt-4",
-                "bg-neutral-200",
-                "shadow-lg",
-                "border border-neutral-400",
-                "w-[500px]",
-                "z-50",
-            ]
+            "absolute top-full right-0 mt-4",
+            "bg-neutral-200",
+            "shadow-lg",
+            "border border-neutral-400",
+            "w-[500px]",
+            "z-50",
         ):
             render_prompt_form_content(prompt, model, aspect_ratio)
 
@@ -724,7 +640,7 @@ def render_prompt_form_content(
 ):
     """Render the prompt form content without the container."""
     with tag.form(
-        classes=["flex flex-col gap-4", "p-4"],
+        "flex flex-col gap-4 p-4",
         hx_post=app.url_path_for("generate"),
         hx_target="#gallery-container",
         hx_swap="afterbegin settle:0.5s",

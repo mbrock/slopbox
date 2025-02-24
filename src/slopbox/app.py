@@ -225,8 +225,7 @@ async def regenerate(spec_id: int):
 
     image = get_generation_by_id(generation_id)
     # Just render the image status without the prompt info
-    with tag.div(classes="relative"):
-        render_image_or_status(image)
+    render_image_or_status(image)
 
 
 @app.post("/copy-spec/{spec_id}")
@@ -295,17 +294,15 @@ async def toggle_like_endpoint(image_uuid: str):
 
     # Return the updated like indicator
     with tag.div(
+        "absolute top-2 right-2 p-2 rounded-full",
+        "bg-amber-100 text-amber-600"
+        if new_liked_status
+        else "bg-white/80 text-neutral-600",
+        "opacity-0 group-hover:opacity-100 transition-opacity",
+        "z-20 pointer-events-none",
         id=f"like-indicator-{image_uuid}",
-        classes=[
-            "absolute top-2 right-2 p-2 rounded-full",
-            "bg-amber-100 text-amber-600"
-            if new_liked_status
-            else "bg-white/80 text-neutral-600",
-            "opacity-0 group-hover:opacity-100 transition-opacity",
-            "z-20 pointer-events-none",
-        ],
     ):
-        with tag.span(classes="text-xl"):
+        with tag.span("text-xl"):
             text("♥")
 
 

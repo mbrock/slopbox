@@ -733,7 +733,7 @@ requires-dist = [
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23.0" },
     { name = "replicate", specifier = ">=1.0.4" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.2.0" },
-    { name = "tagflow", specifier = ">=0.6.0" },
+    { name = "tagflow", specifier = ">=0.7.0" },
     { name = "uvicorn", specifier = ">=0.34.0" },
 ]
 
@@ -778,7 +778,7 @@ wheels = [
 
 [[package]]
 name = "tagflow"
-version = "0.6.0"
+version = "0.7.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "beautifulsoup4" },
@@ -787,9 +787,9 @@ dependencies = [
     { name = "rich" },
     { name = "trio" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/69/3c/98821c306434be136c63c5760b5122afdd215ccedc3650d469bd0ac4cacb/tagflow-0.6.0.tar.gz", hash = "sha256:d4a8ed50f3edd3c060a7810ccbe40ad5603998388139e36139fce43b043cc696", size = 39998 }
+sdist = { url = "https://files.pythonhosted.org/packages/c8/f6/1032542fbb588b6e400b9c4f8a732af6512b6be61bbb2bf76011981f015e/tagflow-0.7.0.tar.gz", hash = "sha256:7e8ad93f7de56629a9cd5fd7c91e51936be15cc55075dad2001e4612389448e5", size = 41258 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/6b/19/037bfb141e1b77e2270bdf80fd5744c6053b45d3c8289d17043273ee4839/tagflow-0.6.0-py3-none-any.whl", hash = "sha256:ef562a4510b764cd0fc778440d6f26800b854556f00cf38c1e5671a674f4530d", size = 14127 },
+    { url = "https://files.pythonhosted.org/packages/5e/b1/cf87e6f0b7a55679c7d5ec274ca37501de5d2c01778e048094b0eae2eda4/tagflow-0.7.0-py3-none-any.whl", hash = "sha256:5167c875dd017d6dded06a28a71514f4a5a5bb6c7831a2065e138e008d27df7a", size = 14512 },
 ]
 
 [[package]]
