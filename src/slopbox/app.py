@@ -36,11 +36,21 @@ from slopbox.pageant import pageant, pageant_choose
 from slopbox.prompt.form import render_prompt_form_content, render_prompt_part_input
 from slopbox.replicate import generate_image
 from slopbox.ui import render_base_layout
-from slopbox.gmail.routes import gmail_inbox, gmail_sync, gmail_thread_detail
+from slopbox.gmail.routes import (
+    gmail_inbox,
+    gmail_sync,
+    gmail_thread_detail,
+    gmail_insights,
+    gmail_analyze,
+)
 
 app.add_middleware(DocumentMiddleware)
 
 app.mount("/images", StaticFiles(directory=IMAGE_DIR), name="images")
+
+# Add the new smart inbox route
+app.get("/gmail/insights")(gmail_insights)
+app.post("/gmail/analyze")(gmail_analyze)
 
 
 @app.get("/")

@@ -31,8 +31,17 @@ def render_thread_list(
                 ):
                     text("Sync Inbox")
 
+                # Analyze with Claude button
+                with tag.button(
+                    *Styles.button_secondary,
+                    hx_post=f"/gmail/analyze?page={page}",
+                    hx_target="#email-container",
+                    hx_swap="innerHTML",
+                ):
+                    text("Analyze with Claude")
+
         # Thread list container
-        with tag.div("bg-white rounded-lg shadow-lg", id="email-container"):
+        with tag.div("bg-white rounded-lg shadow-lg p-6", id="email-container"):
             if not threads:
                 with tag.div("p-8 text-center text-neutral-600"):
                     text("No emails found. Click 'Sync Inbox' to fetch your emails.")
@@ -63,9 +72,7 @@ def render_thread_list(
 
             # Pagination
             if total_pages > 1:
-                with tag.div(
-                    "flex items-center justify-between px-4 py-3 bg-neutral-50 rounded-b-lg"
-                ):
+                with tag.div("flex items-center justify-between mt-6"):
                     # Previous page button
                     with tag.button(
                         *Styles.pagination_button,
@@ -158,7 +165,7 @@ def render_thread_detail(emails: List[Email]):
 
 def render_page(threads: List[Tuple[Email, List[Email]]], page: int, total_pages: int):
     """Render the complete email page with thread list and detail views."""
-    with tag.div("grid grid-cols-2 gap-6"):
+    with tag.div("flex flex-col min-h-screen bg-neutral-100 p-4", id="email-list"):
         # Thread list
         with tag.div():
             render_thread_list(threads, page, total_pages)
