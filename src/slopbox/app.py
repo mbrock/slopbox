@@ -28,20 +28,14 @@ from slopbox.model import (
     get_paginated_specs_with_images,
     get_prompt_by_uuid,
     get_random_liked_image,
-    get_random_pair_for_comparison,
     get_random_spec_image,
     get_random_weighted_image,
-    get_top_rated_images,
-    initialize_pageant_tables,
-    record_comparison,
     toggle_like,
 )
+from slopbox.pageant import pageant, pageant_choose
 from slopbox.prompt.form import render_prompt_form_content, render_prompt_part_input
 from slopbox.replicate import generate_image
-from slopbox.ui import (
-    render_base_layout,
-    render_pageant_page,
-)
+from slopbox.ui import render_base_layout
 
 app.add_middleware(DocumentMiddleware)
 
@@ -319,60 +313,12 @@ async def get_prompt_part(index: int):
 
 
 @app.get("/pageant")
-async def pageant():
+async def pageant_route(request: Request):
     """Show the pageant page with a random pair of images."""
-    # Initialize tables if they don't exist
-    initialize_pageant_tables()
-
-    # Get a random pair of images
-    left_image, right_image = get_random_pair_for_comparison()
-    if not left_image or not right_image:
-        with render_base_layout():
-            with tag.div("flex items-center justify-center min-h-screen"):
-                with tag.p("text-lg text-neutral-600"):
-                    text("Not enough images available for comparison.")
-        return
-
-    # Get current rankings
-    rankings = get_top_rated_images()
-    rankings_with_counts = []
-    for image, rating in rankings:
-        with conn:
-            cur = conn.execute(
-                "SELECT num_comparisons FROM image_ratings WHERE image_uuid = ?",
-                (image.uuid,),
-            )
-            num_comparisons = cur.fetchone()[0]
-            rankings_with_counts.append((image, rating, num_comparisons))
-
-    with render_base_layout():
-        render_pageant_page(left_image, right_image, rankings_with_counts)
+    return await pageant()
 
 
 @app.post("/pageant/choose/{winner_uuid}/{loser_uuid}")
-async def pageant_choose(winner_uuid: str, loser_uuid: str):
+async def pageant_choose_route(winner_uuid: str, loser_uuid: str):
     """Record a comparison result and return a new pair of images."""
-    # Record the comparison
-    record_comparison(winner_uuid, loser_uuid)
-
-    # Get a new random pair
-    left_image, right_image = get_random_pair_for_comparison()
-    if not left_image or not right_image:
-        with tag.div("flex items-center justify-center min-h-screen"):
-            with tag.p("text-lg text-neutral-600"):
-                text("No more images available for comparison.")
-        return
-
-    # Get updated rankings
-    rankings = get_top_rated_images()
-    rankings_with_counts = []
-    for image, rating in rankings:
-        with conn:
-            cur = conn.execute(
-                "SELECT num_comparisons FROM image_ratings WHERE image_uuid = ?",
-                (image.uuid,),
-            )
-            num_comparisons = cur.fetchone()[0]
-            rankings_with_counts.append((image, rating, num_comparisons))
-
-    render_pageant_page(left_image, right_image, rankings_with_counts)
+    return await pageant_choose(winner_uuid, loser_uuid)
