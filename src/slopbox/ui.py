@@ -1,3 +1,6 @@
+from tagflow import tag, text
+
+
 class Styles:
     button_primary = [
         "px-2 py-1",
@@ -101,3 +104,42 @@ class Styles:
         "relative",
         "z-10",
     ]
+
+
+def render_radio_option(
+    name: str,
+    value: str,
+    label: str,
+    is_checked: bool = False,
+):
+    """Render a styled radio button option with label.
+
+    Args:
+        name: Name attribute for the radio group
+        value: Value for this radio option
+        label: Display label text
+        is_checked: Whether this option is selected
+    """
+    with tag.div("flex items-center"):
+        with tag.input(
+            "relative size-4",
+            "appearance-none rounded-full",
+            "border border-neutral-300 bg-white",
+            "before:absolute before:inset-1",
+            "before:rounded-full before:bg-white",
+            "checked:border-neutral-600 checked:bg-neutral-600",
+            "focus-visible:outline focus-visible:outline-2",
+            "focus-visible:outline-offset-2 focus-visible:outline-neutral-600",
+            "[&:not(:checked)]:before:hidden",
+            id=f"{name}-{value}",
+            type="radio",
+            name=name,
+            value=value,
+            checked=is_checked,
+        ):
+            pass
+        with tag.label(
+            "ml-3 text-sm font-medium text-neutral-900",
+            for_=f"{name}-{value}",
+        ):
+            text(label)

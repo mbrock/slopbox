@@ -12,7 +12,7 @@ from slopbox.base import (
 )
 from slopbox.fastapi import app
 from slopbox.model import Image, ImageSpec, split_prompt
-from slopbox.ui import Styles
+from slopbox.ui import Styles, render_radio_option
 
 
 @html.div(
@@ -437,6 +437,10 @@ def render_slideshow(
     "flex flex-col",
     "items-center justify-center",
     "relative",
+    id="slideshow-content",
+    hx_target="#slideshow-content",
+    hx_swap="outerHTML",
+    hx_trigger="every 1s",
 )
 def render_slideshow_content(
     image: Optional[Image],
@@ -455,11 +459,7 @@ def render_slideshow_content(
         if params:
             next_url += "?" + urlencode(params)
 
-    attr("id", "slideshow-content")
     attr("hx-get", next_url)
-    attr("hx-target", "#slideshow-content")
-    attr("hx-swap", "outerHTML")
-    attr("hx-trigger", "every 1s")
 
     if image and image.status == "complete" and image.filepath:
         with tag.div(
@@ -468,7 +468,7 @@ def render_slideshow_content(
         ):
             # Image with padding
             with tag.img(
-                "object-contain h-screen",
+                "object-contain max-h-screen max-w-screen",
                 src=f"/images/{os.path.basename(image.filepath)}",
                 alt=image.spec.prompt,
             ):
@@ -505,31 +505,7 @@ def render_generation_options(model: str = None, aspect_ratio: str = None):
         with tag.div("flex gap-4"):
             for model_name, model_id in MODELS.items():
                 is_checked = model_id == model if model else model_id == DEFAULT_MODEL
-                with tag.div("flex items-center"):
-                    with tag.input(
-                        [
-                            "relative size-4",
-                            "appearance-none rounded-full",
-                            "border border-neutral-300 bg-white",
-                            "before:absolute before:inset-1",
-                            "before:rounded-full before:bg-white",
-                            "checked:border-neutral-600 checked:bg-neutral-600",
-                            "focus-visible:outline focus-visible:outline-2",
-                            "focus-visible:outline-offset-2 focus-visible:outline-neutral-600",
-                            "[&:not(:checked)]:before:hidden",
-                        ],
-                        id=f"model-{model_id}",
-                        type="radio",
-                        name="model",
-                        value=model_id,
-                        checked=is_checked,
-                    ):
-                        pass
-                    with tag.label(
-                        "ml-3 text-sm font-medium text-neutral-900",
-                        for_=f"model-{model_id}",
-                    ):
-                        text(model_name)
+                render_radio_option("model", model_id, model_name, is_checked)
 
     # Aspect ratio selection
     with tag.fieldset("flex flex-col gap-2"):
@@ -548,34 +524,40 @@ def render_generation_options(model: str = None, aspect_ratio: str = None):
                     scaled_height = preview_size
                     scaled_width = int(preview_size * (w / h))
 
-                with tag.label(
-                    "flex flex-col items-center justify-end cursor-pointer relative p-2",
-                ):
-                    with tag.input(
-                        "appearance-none absolute peer",
-                        type="radio",
-                        name="aspect_ratio",
-                        value=ratio,
-                        checked=is_checked,
-                    ):
-                        pass
-                    # Preview box that changes style when radio is checked
-                    with tag.div(
-                        "rounded",
-                        "transition-all duration-150",
-                        # Selected state via peer
-                        "peer-checked:bg-neutral-800",
-                        "peer-checked:ring-2 peer-checked:ring-neutral-800",
-                        # Unselected state
-                        "bg-neutral-500",
-                        "ring-1 ring-neutral-500",
-                        # Hover states
-                        "hover:bg-neutral-600 hover:ring-neutral-600",
-                        style=f"width: {scaled_width}px; height: {scaled_height}px",
-                    ):
-                        pass
-                    with tag.span("mt-1 text-xs text-neutral-600"):
-                        text(ratio)
+                render_aspect_ratio_option(
+                    is_checked, ratio, scaled_width, scaled_height
+                )
+
+
+def render_aspect_ratio_option(is_checked, ratio, scaled_width, scaled_height):
+    with tag.label(
+        "flex flex-col items-center justify-end cursor-pointer relative p-2",
+    ):
+        with tag.input(
+            "appearance-none absolute peer",
+            type="radio",
+            name="aspect_ratio",
+            value=ratio,
+            checked=is_checked,
+        ):
+            pass
+            # Preview box that changes style when radio is checked
+        with tag.div(
+            "rounded",
+            "transition-all duration-150",
+            # Selected state via peer
+            "peer-checked:bg-neutral-800",
+            "peer-checked:ring-2 peer-checked:ring-neutral-800",
+            # Unselected state
+            "bg-neutral-500",
+            "ring-1 ring-neutral-500",
+            # Hover states
+            "hover:bg-neutral-600 hover:ring-neutral-600",
+            style=f"width: {scaled_width}px; height: {scaled_height}px",
+        ):
+            pass
+        with tag.span("mt-1 text-xs text-neutral-600"):
+            text(ratio)
 
 
 @html.form(
