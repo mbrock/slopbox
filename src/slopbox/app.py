@@ -36,6 +36,7 @@ from slopbox.pageant import pageant, pageant_choose
 from slopbox.prompt.form import render_prompt_form_content, render_prompt_part_input
 from slopbox.replicate import generate_image
 from slopbox.ui import render_base_layout
+from slopbox.gmail.routes import gmail_inbox, gmail_sync, gmail_thread_detail
 
 app.add_middleware(DocumentMiddleware)
 
@@ -322,3 +323,21 @@ async def pageant_route(request: Request):
 async def pageant_choose_route(winner_uuid: str, loser_uuid: str):
     """Record a comparison result and return a new pair of images."""
     return await pageant_choose(winner_uuid, loser_uuid)
+
+
+@app.get("/gmail")
+async def gmail_route(request: Request, page: int = 1):
+    """Show the Gmail inbox page."""
+    return await gmail_inbox(request, page)
+
+
+@app.post("/gmail/sync")
+async def gmail_sync_route():
+    """Sync emails from Gmail."""
+    return await gmail_sync()
+
+
+@app.get("/gmail/thread/{thread_id}")
+async def gmail_thread_detail_route(thread_id: str):
+    """Show the details of a specific thread."""
+    return await gmail_thread_detail(thread_id)

@@ -86,6 +86,43 @@ def create_tables():
             """
         )
 
+        # Create emails table
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS emails (
+                id INTEGER PRIMARY KEY,
+                message_id TEXT UNIQUE NOT NULL,
+                thread_id TEXT NOT NULL,
+                subject TEXT,
+                sender TEXT NOT NULL,
+                recipient TEXT NOT NULL,
+                date TIMESTAMP NOT NULL,
+                snippet TEXT,
+                body_text TEXT,
+                body_html TEXT,
+                labels TEXT,
+                created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+
+        # Create email attachments table
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS email_attachments (
+                id INTEGER PRIMARY KEY,
+                email_id INTEGER NOT NULL,
+                filename TEXT NOT NULL,
+                content_type TEXT NOT NULL,
+                size INTEGER NOT NULL,
+                filepath TEXT,
+                created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (email_id) REFERENCES emails (id)
+            )
+            """
+        )
+
 
 def migrate_v2_to_v3():
     """Migrate data from images_v2 to the new schema."""
