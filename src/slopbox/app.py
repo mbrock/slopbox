@@ -14,6 +14,13 @@ from slopbox.base import (
 )
 from slopbox.claude import generate_modified_prompt
 from slopbox.fastapi import app
+from slopbox.image import (
+    render_image_gallery,
+    render_image_or_status,
+    render_slideshow,
+    render_slideshow_content,
+    render_spec_block,
+)
 from slopbox.model import (
     create_pending_generation,
     get_gallery_total_pages,
@@ -25,17 +32,9 @@ from slopbox.model import (
     get_random_weighted_image,
     toggle_like,
 )
+from slopbox.prompt.form import render_prompt_form_content, render_prompt_part_input
 from slopbox.replicate import generate_image
-from slopbox.view import (
-    render_base_layout,
-    render_image_gallery,
-    render_image_or_status,
-    render_prompt_form_content,
-    render_prompt_part_input,
-    render_slideshow,
-    render_slideshow_content,
-    render_spec_block,
-)
+from slopbox.ui import render_base_layout
 
 app.add_middleware(DocumentMiddleware)
 

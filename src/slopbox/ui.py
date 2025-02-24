@@ -1,3 +1,5 @@
+from contextlib import contextmanager
+
 from tagflow import tag, text
 
 
@@ -143,3 +145,52 @@ def render_radio_option(
             for_=f"{name}-{value}",
         ):
             text(label)
+
+
+def render_cdn_includes():
+    with tag.script(src="https://unpkg.com/@tailwindcss/browser@4"):
+        pass
+    with tag.script(src="https://unpkg.com/htmx.org@2.0.4"):
+        pass
+
+
+@contextmanager
+def render_base_layout():
+    with tag.html(lang="en"):
+        with tag.head():
+            with tag.title():
+                text("Slopbox")
+            render_cdn_includes()
+        with tag.body(classes="bg-neutral-400 flex h-screen"):
+            yield
+
+
+def render_aspect_ratio_option(is_checked, ratio, scaled_width, scaled_height):
+    with tag.label(
+        "flex flex-col items-center justify-end cursor-pointer relative p-2",
+    ):
+        with tag.input(
+            "appearance-none absolute peer",
+            type="radio",
+            name="aspect_ratio",
+            value=ratio,
+            checked=is_checked,
+        ):
+            pass
+            # Preview box that changes style when radio is checked
+        with tag.div(
+            "rounded",
+            "transition-all duration-150",
+            # Selected state via peer
+            "peer-checked:bg-neutral-800",
+            "peer-checked:ring-2 peer-checked:ring-neutral-800",
+            # Unselected state
+            "bg-neutral-500",
+            "ring-1 ring-neutral-500",
+            # Hover states
+            "hover:bg-neutral-600 hover:ring-neutral-600",
+            style=f"width: {scaled_width}px; height: {scaled_height}px",
+        ):
+            pass
+        with tag.span("mt-1 text-xs text-neutral-600"):
+            text(ratio)
