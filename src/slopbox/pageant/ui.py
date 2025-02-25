@@ -3,6 +3,7 @@ from typing import List, Tuple
 
 from tagflow import tag, text
 
+from slopbox.image.img import get_image_url
 from slopbox.model import Image
 
 
@@ -43,7 +44,7 @@ def render_comparison(left_image: Image, right_image: Image):
                     with tag.img(
                         "max-h-[70vh] rounded-lg shadow-lg",
                         "group-hover:ring-4 group-hover:ring-blue-400",
-                        src=f"/images/{os.path.basename(left_image.filepath)}",
+                        src=get_image_url(left_image),
                         alt="Left image for comparison",
                     ):
                         pass
@@ -69,7 +70,7 @@ def render_comparison(left_image: Image, right_image: Image):
                     with tag.img(
                         "max-h-[70vh] rounded-lg shadow-lg",
                         "group-hover:ring-4 group-hover:ring-blue-400",
-                        src=f"/images/{os.path.basename(right_image.filepath)}",
+                        src=get_image_url(right_image),
                         alt="Right image for comparison",
                     ):
                         pass
@@ -114,7 +115,7 @@ def render_rankings(rankings: List[Tuple[Image, float, int]]):
                             with tag.td("px-4 py-2"):
                                 with tag.img(
                                     "h-16 rounded shadow",
-                                    src=f"/images/{os.path.basename(image.filepath)}",
+                                    src=get_image_url(image),
                                     alt=f"Rank {rank} image",
                                 ):
                                     pass

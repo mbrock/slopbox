@@ -1,8 +1,8 @@
+import logging
+import re
 from dataclasses import dataclass
 from datetime import datetime
 from typing import List, Optional, Tuple
-import re
-import logging
 
 from slopbox.base import conn
 

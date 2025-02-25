@@ -1,13 +1,17 @@
-from tagflow import html, tag, text, attr
+from typing import Optional
 
-from slopbox.base import MODELS, DEFAULT_MODEL, ASPECT_TO_RECRAFT
+from tagflow import attr, html, tag, text
+
+from slopbox.base import ASPECT_TO_RECRAFT, DEFAULT_MODEL, MODELS
 from slopbox.fastapi import app
 from slopbox.model import split_prompt
-from slopbox.ui import Styles, render_radio_option, render_aspect_ratio_option
+from slopbox.ui import Styles, render_aspect_ratio_option, render_radio_option
 
 
 def render_prompt_form_dropdown(
-    prompt: str = None, model: str = None, aspect_ratio: str = None
+    prompt: Optional[str] = None,
+    model: Optional[str] = None,
+    aspect_ratio: Optional[str] = None,
 ):
     """Render the prompt form in a dropdown button."""
     with tag.details("relative"):
@@ -25,9 +29,12 @@ def render_prompt_form_dropdown(
         ):
             render_prompt_form_content(prompt, model, aspect_ratio)
 
+
 @html.div(id="prompt-form")
 def render_prompt_form_content(
-    prompt: str = None, model: str = None, aspect_ratio: str = None
+    prompt: Optional[str] = None,
+    model: Optional[str] = None,
+    aspect_ratio: Optional[str] = None,
 ):
     """Render the prompt form content without the container."""
     with tag.form(
@@ -42,8 +49,11 @@ def render_prompt_form_content(
 
     render_prompt_modification_form()
 
+
 @html.div("flex flex-col gap-2")
-def render_generation_options(model: str = None, aspect_ratio: str = None):
+def render_generation_options(
+    model: Optional[str] = None, aspect_ratio: Optional[str] = None
+):
     # Model selection
     with tag.fieldset("flex flex-col gap-2"):
         with tag.span("text-xs text-neutral-600"):
@@ -80,7 +90,7 @@ def render_generation_options(model: str = None, aspect_ratio: str = None):
     "w-full",
     id="prompt-inputs",
 )
-def render_prompt_inputs(prompt):
+def render_prompt_inputs(prompt: Optional[str] = None):
     # If there's an existing prompt, split it into parts
     prompt_parts = split_prompt(prompt) if prompt else []
     # If no prompt parts or empty prompt, just add one empty input
@@ -124,7 +134,6 @@ def render_prompt_part_input(index: int = 0, content: str = ""):
         text("×")
 
 
-
 @html.form(
     "flex flex-col gap-2 p-4",
     hx_target="#prompt-form",
@@ -146,5 +155,3 @@ def render_prompt_modification_form():
         type="submit",
     ):
         text("Modify")
-
-

@@ -1,11 +1,12 @@
-from slopbox.base import ASPECT_TO_RECRAFT, IMAGE_DIR
-from slopbox.model import update_generation_status
-
+import logging
+import os
 
 import aiofiles
 import replicate
-import os
-import logging
+import replicate.helpers
+
+from slopbox.base import ASPECT_TO_RECRAFT, IMAGE_DIR
+from slopbox.model import update_generation_status
 
 # Configure logging
 logging.basicConfig(
@@ -46,9 +47,7 @@ async def generate_image(
             model_inputs["style"] = style_map.get(
                 style, "realistic_image/natural_light"
             )
-            logger.info(
-                f"Using Recraft-specific settings: size={model_inputs['size']}, style={model_inputs['style']}"
-            )
+            logger.info(f"Using Recraft style={model_inputs['style']}")
         else:
             model_inputs["aspect_ratio"] = aspect_ratio
             model_inputs["safety_tolerance"] = 6
@@ -64,9 +63,13 @@ async def generate_image(
         logger.info("Image generated successfully, downloading result...")
         # Read the image bytes
         if isinstance(output, list):
-            image_bytes = await output[0].aread()
+            file_output = output[0]
         else:
-            image_bytes = await output.aread()
+            file_output = output
+
+        assert isinstance(file_output, replicate.helpers.FileOutput)
+
+        image_bytes = await file_output.aread()
 
         # Save the image
         filename = f"{generation_id}.png"

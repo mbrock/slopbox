@@ -1,9 +1,26 @@
 import os
 
-from tagflow import tag, attr, text
+from tagflow import attr, tag, text
 
 from slopbox.fastapi import app
 from slopbox.model import Image
+
+
+def get_image_url(image: Image) -> str:
+    """
+    Generate a URL for an image file.
+
+    Args:
+        image: The Image object containing the filepath
+
+    Returns:
+        The URL path to access the image
+
+    Raises:
+        AssertionError: If image.filepath is None
+    """
+    assert image.filepath is not None, "Image filepath cannot be None"
+    return f"/images/{os.path.basename(image.filepath)}"
 
 
 def render_image_or_status(image: Image):
@@ -57,8 +74,8 @@ def render_complete_image(image: Image):
             "shadow-xl shadow-neutral-500",
             "border-amber-200 border-4" if image.liked else "border border-neutral-500",
             "z-10",
-            src=f"/images/{os.path.basename(image.filepath)}",
-            alt=image.spec.prompt,
+            src=get_image_url(image),
+            alt=image.spec.prompt if image.spec else "",
         ):
             pass
 

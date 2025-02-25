@@ -14,6 +14,7 @@ from slopbox.base import (
 )
 from slopbox.claude import generate_modified_prompt
 from slopbox.fastapi import app
+
 from slopbox.image import (
     render_image_gallery,
     render_image_or_status,
@@ -36,21 +37,10 @@ from slopbox.pageant import pageant, pageant_choose
 from slopbox.prompt.form import render_prompt_form_content, render_prompt_part_input
 from slopbox.replicate import generate_image
 from slopbox.ui import render_base_layout
-from slopbox.gmail.routes import (
-    gmail_inbox,
-    gmail_sync,
-    gmail_thread_detail,
-    gmail_insights,
-    gmail_analyze,
-)
 
 app.add_middleware(DocumentMiddleware)
 
 app.mount("/images", StaticFiles(directory=IMAGE_DIR), name="images")
-
-# Add the new smart inbox route
-app.get("/gmail/insights")(gmail_insights)
-app.post("/gmail/analyze")(gmail_analyze)
 
 
 @app.get("/")
@@ -103,7 +93,7 @@ async def generate(
     prompt_parts = [
         value.strip()
         for key, value in form_data.items()
-        if key.startswith("prompt_part_") and value.strip()
+        if key.startswith("prompt_part_") and isinstance(value, str) and value.strip()
     ]
 
     # Check if we're dealing with sentences (any part ends with period + space)
@@ -126,6 +116,7 @@ async def generate(
     )
 
     image = get_generation_by_id(generation_id)
+    assert image is not None
     # Return a complete spec block for this new image
     render_spec_block(image.spec, [image])
 
@@ -147,11 +138,13 @@ async def check_status(generation_id: str):
 async def add_prompt_part(request: Request):
     """Add a prompt part to the prompt form."""
     form_data = await request.form()
-    part = form_data.get("text", "").strip()
+    part = form_data.get("text", "")
+    assert isinstance(part, str)
+
     previous_parts = [
         value.strip()
         for key, value in form_data.items()
-        if key.startswith("prompt_part_") and value.strip()
+        if key.startswith("prompt_part_") and isinstance(value, str) and value.strip()
     ]
 
     all_parts = previous_parts + [part]
@@ -174,7 +167,9 @@ async def modify_prompt(request: Request, modification: str = Form(...)):
         prompt_parts = [
             value.strip()
             for key, value in form_data.items()
-            if key.startswith("prompt_part_") and value.strip()
+            if key.startswith("prompt_part_")
+            and isinstance(value, str)
+            and value.strip()
         ]
 
         # Join parts with commas for the original prompt
@@ -235,6 +230,7 @@ async def regenerate(spec_id: int):
     )
 
     image = get_generation_by_id(generation_id)
+    assert image is not None
     # Just render the image status without the prompt info
     render_image_or_status(image)
 
@@ -333,21 +329,3 @@ async def pageant_route(request: Request):
 async def pageant_choose_route(winner_uuid: str, loser_uuid: str):
     """Record a comparison result and return a new pair of images."""
     return await pageant_choose(winner_uuid, loser_uuid)
-
-
-@app.get("/gmail")
-async def gmail_route(request: Request, page: int = 1):
-    """Show the Gmail inbox page."""
-    return await gmail_inbox(request, page)
-
-
-@app.post("/gmail/sync")
-async def gmail_sync_route():
-    """Sync emails from Gmail."""
-    return await gmail_sync()
-
-
-@app.get("/gmail/thread/{thread_id}")
-async def gmail_thread_detail_route(thread_id: str):
-    """Show the details of a specific thread."""
-    return await gmail_thread_detail(thread_id)

@@ -66,3 +66,13 @@ python_version = "3.13"
 strict = true
 warn_return_any = true
 warn_unused_configs = true
+
+[tool.pyright]
+include = ["src"]
+exclude = ["**/__pycache__"]
+pythonVersion = "3.13"
+
+[dependency-groups]
+dev = [
+    "ruff>=0.9.7",
+]

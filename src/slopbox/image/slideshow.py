@@ -2,7 +2,7 @@ import os
 from typing import Optional
 from urllib.parse import urlencode
 
-from tagflow import html, attr, tag, text
+from tagflow import attr, html, tag, text
 
 from slopbox.fastapi import app
 from slopbox.model import Image
@@ -42,6 +42,7 @@ def render_slideshow_content(
     liked_only: bool = False,
 ):
     """Render just the content of the slideshow that needs to be updated."""
+
     if liked_only:
         next_url = app.url_path_for("slideshow_liked_next")
     else:
@@ -55,6 +56,7 @@ def render_slideshow_content(
     attr("hx-get", next_url)
 
     if image and image.status == "complete" and image.filepath:
+        assert image.spec is not None
         with tag.div(
             "bg-white rounded-lg shadow-2xl shadow-neutral-700",
             id="image-container",

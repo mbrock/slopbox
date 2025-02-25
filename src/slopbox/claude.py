@@ -1,7 +1,8 @@
-import anthropic
 import os
-from slopbox.base import prompt_modification_system_message
 
+import anthropic
+
+from slopbox.base import prompt_modification_system_message
 
 claude = anthropic.AsyncAnthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
@@ -41,6 +42,7 @@ async def generate_modified_prompt(modification, prompt):
     modified_prompt = None
     for content in message.content:
         if content.type == "tool_use" and content.name == "replacePromptText":
+            assert isinstance(content.input, dict)
             modified_prompt = content.input["modified_prompt"]
             break
     return modified_prompt

@@ -1,11 +1,11 @@
 from typing import List
 from urllib.parse import urlencode
 
-from tagflow import html, attr, tag, text
+from tagflow import attr, html, tag, text
 
 from slopbox.fastapi import app
 from slopbox.image.img import render_image_or_status
-from slopbox.model import ImageSpec, Image, split_prompt
+from slopbox.model import Image, ImageSpec, split_prompt
 from slopbox.ui import Styles
 
 
@@ -85,6 +85,8 @@ def render_spec_header(spec: ImageSpec):
 )
 def render_prompt_pills(image: Image):
     """Render the prompt pills for an image."""
+    assert image.spec is not None
+
     # Prompt
     with tag.div("flex flex-wrap gap-2"):
         for part in split_prompt(image.spec.prompt):

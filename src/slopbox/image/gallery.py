@@ -1,7 +1,7 @@
 from typing import List, Tuple
 from urllib.parse import urlencode
 
-from tagflow import html, tag, text, attr
+from tagflow import attr, html, tag, text
 
 from slopbox.fastapi import app
 from slopbox.image.spec import render_spec_block
