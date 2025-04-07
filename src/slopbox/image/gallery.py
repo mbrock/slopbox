@@ -29,6 +29,7 @@ def render_image_gallery(
         with tag.div("flex items-center gap-4"):
             render_sort_options(sort_by, liked_only)
             render_slideshow_link()
+            render_delete_unliked_button()
 
         render_prompt_form_dropdown()
 
@@ -123,3 +124,18 @@ def render_slideshow_link():
     with tag.span("text-sm"):
         text("♥")
     text("Slideshow")
+
+
+@html.button(
+    Styles.button_secondary,
+    "bg-red-100 hover:bg-red-200",
+    "flex items-center gap-1",
+    "ml-2",
+)
+def render_delete_unliked_button():
+    attr("hx-post", app.url_path_for("delete_unliked_images"))
+    attr("hx-swap", "outerHTML")
+    attr("hx-confirm", "This will permanently delete all unliked images. Continue?")
+    with tag.span("text-sm"):
+        text("🗑️")
+    text("Delete Unliked")

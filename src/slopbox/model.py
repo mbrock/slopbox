@@ -15,30 +15,39 @@ class ImageSpec:
     prompt: str
     model: str
     aspect_ratio: str
+    style: str
     created: datetime
 
     @classmethod
     def from_row(cls, row: tuple) -> "ImageSpec":
+        assert len(row) == 6
         return cls(
             id=row[0],
             prompt=row[1],
             model=row[2],
             aspect_ratio=row[3],
-            created=datetime.fromisoformat(row[4]),
+            style=row[4],
+            created=datetime.fromisoformat(row[5]),
         )
 
     @classmethod
-    def create(cls, prompt: str, model: str, aspect_ratio: str) -> "ImageSpec":
+    def create(
+        cls,
+        prompt: str,
+        model: str,
+        aspect_ratio: str,
+        style: str = "realistic_image/natural_light",
+    ) -> "ImageSpec":
         """Create a new image spec, or return an existing one with the same parameters."""
         with conn:
             # Check for existing spec
             cur = conn.execute(
                 """
-                SELECT id, prompt, model, aspect_ratio, created
+                SELECT id, prompt, model, aspect_ratio, style, created
                 FROM image_specs
-                WHERE prompt = ? AND model = ? AND aspect_ratio = ?
+                WHERE prompt = ? AND model = ? AND aspect_ratio = ? AND style = ?
                 """,
-                (prompt, model, aspect_ratio),
+                (prompt, model, aspect_ratio, style),
             )
             row = cur.fetchone()
             if row:
@@ -47,11 +56,11 @@ class ImageSpec:
             # Create new spec if none exists
             cur = conn.execute(
                 """
-                INSERT INTO image_specs (prompt, model, aspect_ratio)
-                VALUES (?, ?, ?)
-                RETURNING id, prompt, model, aspect_ratio, created
+                INSERT INTO image_specs (prompt, model, aspect_ratio, style)
+                VALUES (?, ?, ?, ?)
+                RETURNING id, prompt, model, aspect_ratio, style, created
                 """,
-                (prompt, model, aspect_ratio),
+                (prompt, model, aspect_ratio, style),
             )
             return cls.from_row(cur.fetchone())
 
@@ -97,7 +106,7 @@ def get_paginated_images(page_size: int, offset: int) -> List[Image]:
             """
             SELECT
                 i.id, i.uuid, i.spec_id, i.filepath, i.status, i.created,
-                s.id, s.prompt, s.model, s.aspect_ratio, s.created
+                s.id, s.prompt, s.model, s.aspect_ratio, s.style, s.created
             FROM images_v3 i
             JOIN image_specs s ON i.spec_id = s.id
             ORDER BY i.id DESC
@@ -110,11 +119,15 @@ def get_paginated_images(page_size: int, offset: int) -> List[Image]:
 
 
 def create_pending_generation(
-    generation_id: str, prompt: str, model: str, aspect_ratio: str
+    generation_id: str,
+    prompt: str,
+    model: str,
+    aspect_ratio: str,
+    style: str = "realistic_image/natural_light",
 ) -> None:
     """Create a new pending image generation record."""
     # First get or create the image spec
-    spec = ImageSpec.create(prompt, model, aspect_ratio)
+    spec = ImageSpec.create(prompt, model, aspect_ratio, style)
 
     # Then create the pending generation
     with conn:
@@ -135,7 +148,7 @@ def get_generation_by_id(generation_id: str) -> Optional[Image]:
             """
             SELECT
                 i.id, i.uuid, i.spec_id, i.filepath, i.status, i.created,
-                s.id, s.prompt, s.model, s.aspect_ratio, s.created
+                s.id, s.prompt, s.model, s.aspect_ratio, s.style, s.created
             FROM images_v3 i
             JOIN image_specs s ON i.spec_id = s.id
             WHERE i.uuid = ?
@@ -210,7 +223,7 @@ def get_spec_generations(spec_id: int) -> List[Image]:
             """
             SELECT
                 i.id, i.uuid, i.spec_id, i.filepath, i.status, i.created,
-                s.id, s.prompt, s.model, s.aspect_ratio, s.created
+                s.id, s.prompt, s.model, s.aspect_ratio, s.style, s.created
             FROM images_v3 i
             JOIN image_specs s ON i.spec_id = s.id
             WHERE i.spec_id = ?
@@ -307,7 +320,7 @@ def get_paginated_specs_with_images(
                     (SELECT COUNT(*) FROM images_v3 WHERE spec_id = s.id AND status = 'complete') as image_count
                 FROM image_specs s
             )
-            SELECT DISTINCT s.*
+            SELECT DISTINCT s.id, s.prompt, s.model, s.aspect_ratio, s.style, s.created
             FROM image_specs s
             JOIN images_v3 i ON i.spec_id = s.id
             JOIN spec_counts sc ON s.id = sc.id
@@ -432,7 +445,7 @@ def get_random_weighted_image() -> Tuple[Optional[Image], Optional[int]]:
             """
             SELECT
                 i.id, i.uuid, i.spec_id, i.filepath, i.status, i.created,
-                s.id, s.prompt, s.model, s.aspect_ratio, s.created
+                s.id, s.prompt, s.model, s.aspect_ratio, s.style, s.created
             FROM images_v3 i
             JOIN image_specs s ON i.spec_id = s.id
             WHERE i.spec_id = ? AND i.status = 'complete'
@@ -472,7 +485,7 @@ def get_random_spec_image(spec_id: int) -> Tuple[Optional[Image], Optional[int]]
             """
             SELECT
                 i.id, i.uuid, i.spec_id, i.filepath, i.status, i.created,
-                s.id, s.prompt, s.model, s.aspect_ratio, s.created
+                s.id, s.prompt, s.model, s.aspect_ratio, s.style, s.created
             FROM images_v3 i
             JOIN image_specs s ON i.spec_id = s.id
             WHERE i.spec_id = ? AND i.status = 'complete'
@@ -559,7 +572,7 @@ def get_random_liked_image() -> Tuple[Optional[Image], Optional[int]]:
             """
             SELECT
                 i.id, i.uuid, i.spec_id, i.filepath, i.status, i.created,
-                s.id, s.prompt, s.model, s.aspect_ratio, s.created
+                s.id, s.prompt, s.model, s.aspect_ratio, s.style, s.created
             FROM images_v3 i
             JOIN image_specs s ON i.spec_id = s.id
             JOIN likes l ON i.uuid = l.image_uuid

@@ -61,6 +61,9 @@ def render_spec_header(spec: ImageSpec):
                 text(spec.model)
             with tag.span():
                 text(spec.aspect_ratio)
+            with tag.span():
+                style_name = spec.style.split("/")[-1].replace("_", " ").title() if "/" in spec.style else spec.style.replace("_", " ").title()
+                text(f"{style_name}")
             with tag.span("text-neutral-800 font-mono"):
                 text(f"#{spec.id}")
 
@@ -97,12 +100,15 @@ def render_prompt_pills(image: Image):
             ):
                 text(part)
 
-    # Model and aspect ratio info
+    # Model, aspect ratio, and style info
     with tag.div("flex gap-4 text-xs text-neutral-500 mt-2"):
         with tag.span():
             text(f"Model: {image.spec.model}")
         with tag.span():
             text(f"Aspect: {image.spec.aspect_ratio}")
+        with tag.span():
+            style_name = image.spec.style.split("/")[-1].replace("_", " ").title() if "/" in image.spec.style else image.spec.style.replace("_", " ").title()
+            text(f"Style: {style_name}")
 
     # Action buttons
     with tag.div("flex gap-2 mt-2"):

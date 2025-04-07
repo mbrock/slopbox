@@ -4,6 +4,7 @@ from tagflow import attr, html, tag, text
 
 from slopbox.base import ASPECT_TO_RECRAFT, DEFAULT_MODEL, MODELS
 from slopbox.fastapi import app
+from slopbox.genimg import ImageStyle
 from slopbox.model import split_prompt
 from slopbox.ui import Styles, render_aspect_ratio_option, render_radio_option
 
@@ -12,6 +13,7 @@ def render_prompt_form_dropdown(
     prompt: Optional[str] = None,
     model: Optional[str] = None,
     aspect_ratio: Optional[str] = None,
+    style: Optional[str] = None,
 ):
     """Render the prompt form in a dropdown button."""
     with tag.details("relative"):
@@ -27,7 +29,7 @@ def render_prompt_form_dropdown(
             "w-[500px]",
             "z-50",
         ):
-            render_prompt_form_content(prompt, model, aspect_ratio)
+            render_prompt_form_content(prompt, model, aspect_ratio, style)
 
 
 @html.div(id="prompt-form")
@@ -35,6 +37,7 @@ def render_prompt_form_content(
     prompt: Optional[str] = None,
     model: Optional[str] = None,
     aspect_ratio: Optional[str] = None,
+    style: Optional[str] = None,
 ):
     """Render the prompt form content without the container."""
     with tag.form(
@@ -44,7 +47,7 @@ def render_prompt_form_content(
         hx_swap="afterbegin settle:0.5s",
         hx_disabled_elt="input, button, select",
     ):
-        render_generation_options(model, aspect_ratio)
+        render_generation_options(model, aspect_ratio, style)
         render_prompt_inputs(prompt)
 
     render_prompt_modification_form()
@@ -52,7 +55,9 @@ def render_prompt_form_content(
 
 @html.div("flex flex-col gap-2")
 def render_generation_options(
-    model: Optional[str] = None, aspect_ratio: Optional[str] = None
+    model: Optional[str] = None,
+    aspect_ratio: Optional[str] = None,
+    style: Optional[str] = None,
 ):
     # Model selection
     with tag.fieldset("flex flex-col gap-2"):
@@ -83,6 +88,45 @@ def render_generation_options(
                 render_aspect_ratio_option(
                     is_checked, ratio, scaled_width, scaled_height
                 )
+
+    # Style selection
+    with tag.fieldset("flex flex-col gap-2"):
+        with tag.span("text-xs text-neutral-600"):
+            text("Style")
+        with tag.select(
+            Styles.input_primary,
+            name="style",
+        ):
+            # Group style options by category
+            current_category = None
+            for style_enum in ImageStyle:
+                # Skip the ANY option
+                if style_enum == ImageStyle.ANY:
+                    continue
+
+                # Get friendly name from the enum value
+                style_value = style_enum.value
+
+                # Check if this is a main category
+                if "/" not in style_value:
+                    current_category = style_value
+                    # Create optgroup for this category
+                    with tag.optgroup(label=current_category.replace("_", " ").title()):
+                        # Add the main category option
+                        is_selected = (
+                            style_value == style
+                            if style
+                            else style_value == "realistic_image/natural_light"
+                        )
+                        with tag.option(value=style_value, selected=is_selected):
+                            text(style_value.replace("_", " ").title())
+                else:
+                    # This is a subcategory, check if parent category matches current
+                    category, substyle = style_value.split("/", 1)
+                    if category == current_category:
+                        is_selected = style_value == style
+                        with tag.option(value=style_value, selected=is_selected):
+                            text(substyle.replace("_", " ").title())
 
 
 @html.div(

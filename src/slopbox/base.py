@@ -54,11 +54,26 @@ def create_tables():
                 prompt TEXT NOT NULL,
                 model TEXT NOT NULL,
                 aspect_ratio TEXT NOT NULL,
+                style TEXT DEFAULT 'realistic_image/natural_light',
                 created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE(prompt, model, aspect_ratio)
+                UNIQUE(prompt, model, aspect_ratio, style)
             )
             """
         )
+        
+        # Add style column to existing table if it doesn't exist
+        cur = conn.execute(
+            """
+            PRAGMA table_info(image_specs)
+            """
+        )
+        columns = [column[1] for column in cur.fetchall()]
+        if 'style' not in columns:
+            conn.execute(
+                """
+                ALTER TABLE image_specs ADD COLUMN style TEXT DEFAULT 'realistic_image/natural_light'
+                """
+            )
 
         # Create new images table with spec_id reference
         conn.execute(

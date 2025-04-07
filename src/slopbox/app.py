@@ -1,4 +1,6 @@
 import asyncio
+import logging
+import os
 import re
 import uuid
 from typing import Optional
@@ -14,7 +16,6 @@ from slopbox.base import (
 )
 from slopbox.claude import generate_modified_prompt
 from slopbox.fastapi import app
-
 from slopbox.image import (
     render_image_gallery,
     render_image_or_status,
@@ -35,7 +36,9 @@ from slopbox.model import (
 )
 from slopbox.pageant import pageant, pageant_choose
 from slopbox.prompt.form import render_prompt_form_content, render_prompt_part_input
-from slopbox.replicate import generate_image
+
+# Import the new genimg module
+from slopbox.genimg import generate_image
 from slopbox.ui import render_base_layout
 
 app.add_middleware(DocumentMiddleware)
@@ -86,7 +89,7 @@ async def generate(
     request: Request,
     aspect_ratio: str = Form("1:1"),
     model: str = Form("black-forest-labs/flux-1.1-pro-ultra"),
-    style: str = Form("natural"),
+    style: str = Form("realistic_image/natural_light"),
 ):
     # Get all prompt parts from form data
     form_data = await request.form()
@@ -108,7 +111,7 @@ async def generate(
     generation_id = str(uuid.uuid4())
 
     # Create pending record
-    create_pending_generation(generation_id, prompt, model, aspect_ratio)
+    create_pending_generation(generation_id, prompt, model, aspect_ratio, style)
 
     # Start background task
     asyncio.create_task(
@@ -201,7 +204,7 @@ async def copy_prompt(uuid_str: str):
 
 
 @app.post("/regenerate/{spec_id}")
-async def regenerate(spec_id: int):
+async def regenerate(spec_id: int, style: str = Form("realistic_image/natural_light")):
     """Create a new generation using an existing image spec."""
     generation_id = str(uuid.uuid4())
 
@@ -209,7 +212,7 @@ async def regenerate(spec_id: int):
     with conn:
         cur = conn.execute(
             """
-            SELECT prompt, model, aspect_ratio
+            SELECT prompt, model, aspect_ratio, style
             FROM image_specs
             WHERE id = ?
             """,
@@ -219,14 +222,14 @@ async def regenerate(spec_id: int):
         if not row:
             return JSONResponse({"error": "Spec not found"}, status_code=404)
 
-        prompt, model, aspect_ratio = row
+        prompt, model, aspect_ratio, style = row
 
     # Create pending record
-    create_pending_generation(generation_id, prompt, model, aspect_ratio)
+    create_pending_generation(generation_id, prompt, model, aspect_ratio, style)
 
     # Start background task
     asyncio.create_task(
-        generate_image(generation_id, prompt, aspect_ratio, model, "natural")
+        generate_image(generation_id, prompt, aspect_ratio, model, style)
     )
 
     image = get_generation_by_id(generation_id)
@@ -241,7 +244,7 @@ async def copy_spec(spec_id: int):
     with conn:
         cur = conn.execute(
             """
-            SELECT prompt, model, aspect_ratio
+            SELECT prompt, model, aspect_ratio, style
             FROM image_specs
             WHERE id = ?
             """,
@@ -249,8 +252,8 @@ async def copy_spec(spec_id: int):
         )
         row = cur.fetchone()
         if row:
-            prompt, model, aspect_ratio = row
-            return render_prompt_form_content(prompt, model, aspect_ratio)
+            prompt, model, aspect_ratio, style = row
+            return render_prompt_form_content(prompt, model, aspect_ratio, style)
     return render_prompt_form_content()
 
 
@@ -329,3 +332,93 @@ async def pageant_route(request: Request):
 async def pageant_choose_route(winner_uuid: str, loser_uuid: str):
     """Record a comparison result and return a new pair of images."""
     return await pageant_choose(winner_uuid, loser_uuid)
+
+
+@app.post("/delete-unliked-images")
+async def delete_unliked_images():
+    logger = logging.getLogger(__name__)
+
+    deleted_images = 0
+    deleted_specs = 0
+    deleted_files = 0
+    orphaned_files = 0
+
+    with conn:
+        # First, get all complete images that are not liked
+        cur = conn.execute(
+            """
+            SELECT i.id, i.uuid, i.filepath, i.spec_id
+            FROM images_v3 i
+            WHERE i.status = 'complete'
+            AND NOT EXISTS (
+                SELECT 1 FROM likes WHERE image_uuid = i.uuid
+            )
+            """
+        )
+
+        unliked_images = cur.fetchall()
+
+        # Delete each image file from the file system
+        for _, uuid, filepath, _ in unliked_images:
+            if filepath and os.path.exists(filepath):
+                try:
+                    os.remove(filepath)
+                    deleted_files += 1
+                except Exception as e:
+                    logger.error(f"Failed to delete file {filepath}: {e}")
+
+        # Delete the unliked images from the database
+        if unliked_images:
+            image_ids = [img[0] for img in unliked_images]
+            placeholders = ",".join("?" * len(image_ids))
+
+            conn.execute(
+                f"DELETE FROM images_v3 WHERE id IN ({placeholders})", image_ids
+            )
+            deleted_images = len(image_ids)
+
+        # Now find and delete empty specs (specs with no images)
+        cur = conn.execute(
+            """
+            DELETE FROM image_specs
+            WHERE NOT EXISTS (
+                SELECT 1 FROM images_v3 WHERE spec_id = image_specs.id
+            )
+            """
+        )
+        deleted_specs = cur.rowcount
+
+        # Get all filepaths of liked images to know what to keep
+        cur = conn.execute(
+            """
+            SELECT i.filepath
+            FROM images_v3 i
+            JOIN likes l ON i.uuid = l.image_uuid
+            WHERE i.status = 'complete' AND i.filepath IS NOT NULL
+            """
+        )
+        liked_filepaths = {os.path.basename(row[0]) for row in cur.fetchall() if row[0]}
+
+        # Scan the image directory and delete any files not in the liked_filepaths set
+        for filename in os.listdir(IMAGE_DIR):
+            if filename.endswith(".png") and filename not in liked_filepaths:
+                try:
+                    os.remove(os.path.join(IMAGE_DIR, filename))
+                    orphaned_files += 1
+                except Exception as e:
+                    logger.error(f"Failed to delete orphaned file {filename}: {e}")
+
+    # Return a summary of the operation
+    with tag.div("p-4 bg-green-100 rounded-md"):
+        with tag.h2("text-xl font-bold mb-2"):
+            text("Cleanup Complete")
+
+        with tag.ul("list-disc pl-5"):
+            with tag.li():
+                text(f"Deleted {deleted_images} unliked images from database")
+            with tag.li():
+                text(f"Deleted {deleted_files} image files from disk")
+            with tag.li():
+                text(f"Deleted {orphaned_files} orphaned files from disk")
+            with tag.li():
+                text(f"Removed {deleted_specs} empty image specs")
