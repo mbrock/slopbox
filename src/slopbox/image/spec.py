@@ -13,7 +13,9 @@ from slopbox.ui import Styles
     "flex flex-wrap",
     "gap-4",
 )
-def render_spec_images(spec: ImageSpec, images: List[Image], liked_only: bool = False):
+def render_spec_images(
+    spec: ImageSpec, images: List[Image], liked_only: bool = False
+):
     """Render the image grid for a spec."""
     attr("id", f"spec-images-{spec.id}")
 
@@ -28,7 +30,10 @@ def render_spec_images(spec: ImageSpec, images: List[Image], liked_only: bool = 
     if len(filtered_images) > 4:
         with tag.details("w-full mt-4"):
             with tag.summary(
-                "cursor-pointer text-sm text-neutral-600 hover:text-neutral-800"
+                [
+                    "cursor-pointer text-sm text-neutral-600",
+                    "hover:text-neutral-800",
+                ]
             ):
                 text(f"Show {len(filtered_images) - 4} more images...")
             with tag.div("flex flex-wrap gap-4 mt-4"):
@@ -37,7 +42,9 @@ def render_spec_images(spec: ImageSpec, images: List[Image], liked_only: bool = 
 
 
 @html.div("w-full px-2 mb-8 flex flex-col items-start gap-2")
-def render_spec_block(spec: ImageSpec, images: List[Image], liked_only: bool = False):
+def render_spec_block(
+    spec: ImageSpec, images: List[Image], liked_only: bool = False
+):
     """Render a complete spec block with header and images."""
     render_spec_header(spec)
     render_spec_images(spec, images, liked_only)
@@ -172,7 +179,8 @@ def render_generate_new_button(spec):
 def render_generate_8x_button(spec):
     with tag.button(
         Styles.spec_action_button,
-        "bg-orange-100 hover:bg-orange-200",  # Different color to distinguish it
+        # Different color to distinguish it
+        "bg-orange-100 hover:bg-orange-200",
         hx_post=app.url_path_for("regenerate_8x", spec_id=spec.id),
         hx_target=f"#spec-images-{spec.id}",
         hx_swap="afterbegin settle:0.5s",
@@ -193,6 +201,8 @@ def render_copy_settings_button(spec):
 def render_slideshow_button(spec):
     with tag.a(
         Styles.spec_action_button,
-        href=app.url_path_for("slideshow") + "?" + urlencode({"spec_id": spec.id}),
+        href=app.url_path_for("slideshow")
+        + "?"
+        + urlencode({"spec_id": spec.id}),
     ):
         text("Slideshow")

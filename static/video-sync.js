@@ -32,7 +32,6 @@ class AudioSyncApp {
             this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
             this.setupAudioNodes();
             this.setupEventListeners();
-            console.log('Audio Sync App initialized');
         } catch (error) {
             console.error('Failed to initialize audio context:', error);
         }
@@ -53,35 +52,84 @@ class AudioSyncApp {
     }
     
     setupEventListeners() {
+        console.log('🔧 Setting up event listeners...');
+        
         // File uploads
-        document.getElementById('video-upload')?.addEventListener('change', (e) => this.handleVideoUpload(e.target));
-        document.getElementById('audio-upload')?.addEventListener('change', (e) => this.handleAudioUpload(e.target));
+        const videoUpload = document.getElementById('video-upload');
+        const audioUpload = document.getElementById('audio-upload');
+        
+        if (videoUpload) {
+            videoUpload.addEventListener('change', (e) => this.handleVideoUpload(e.target));
+            console.log('✅ Video upload listener attached');
+        } else {
+            console.warn('❌ video-upload element not found');
+        }
+        
+        if (audioUpload) {
+            audioUpload.addEventListener('change', (e) => this.handleAudioUpload(e.target));
+            console.log('✅ Audio upload listener attached');
+        } else {
+            console.warn('❌ audio-upload element not found');
+        }
         
         // Crossfader
-        document.getElementById('crossfader')?.addEventListener('input', (e) => {
-            this.crossfadeValue = parseFloat(e.target.value);
-            this.updateCrossfader();
-        });
+        const crossfader = document.getElementById('crossfader');
+        if (crossfader) {
+            crossfader.addEventListener('input', (e) => {
+                console.log(`🎚️ Crossfader changed to: ${e.target.value}`);
+                this.crossfadeValue = parseFloat(e.target.value);
+                this.updateCrossfader();
+            });
+            console.log('✅ Crossfader listener attached');
+        } else {
+            console.warn('❌ crossfader element not found');
+        }
         
         // Audio offset
-        document.getElementById('audio-offset')?.addEventListener('input', (e) => {
-            this.audioOffset = parseFloat(e.target.value);
-            this.updateOffsetIndicator();
-        });
+        const audioOffset = document.getElementById('audio-offset');
+        if (audioOffset) {
+            audioOffset.addEventListener('input', (e) => {
+                const newValue = parseFloat(e.target.value) || 0;
+                console.log(`🔄 Audio offset changed from ${this.audioOffset} to ${newValue}`);
+                this.audioOffset = newValue;
+                this.updateOffsetIndicator();
+            });
+            console.log('✅ Audio offset listener attached');
+        } else {
+            console.warn('❌ audio-offset element not found');
+        }
         
         // Clip video checkbox
-        document.getElementById('clip-video-checkbox')?.addEventListener('change', (e) => {
-            this.clipVideo = e.target.checked;
-            console.log(`🎬 Clip video mode: ${this.clipVideo ? 'enabled' : 'disabled'}`);
-        });
+        const clipVideoCheckbox = document.getElementById('clip-video-checkbox');
+        if (clipVideoCheckbox) {
+            clipVideoCheckbox.addEventListener('change', (e) => {
+                console.log(`✂️ Clip video changed to: ${e.target.checked}`);
+                this.clipVideo = e.target.checked;
+            });
+            console.log('✅ Clip video checkbox listener attached');
+        } else {
+            console.warn('❌ clip-video-checkbox element not found');
+        }
         
         // Video player events
         const video = document.getElementById('video-player');
         if (video) {
-            video.addEventListener('play', () => this.syncAudioPlay());
-            video.addEventListener('pause', () => this.syncAudioPause());
-            video.addEventListener('seeked', () => this.syncAudioSeek());
+            video.addEventListener('play', () => {
+                console.log('▶️ Video play event');
+                this.syncAudioPlay();
+            });
+            video.addEventListener('pause', () => {
+                console.log('⏸️ Video pause event');
+                this.syncAudioPause();
+            });
+            video.addEventListener('seeked', () => {
+                console.log('⏭️ Video seeked event');
+                this.syncAudioSeek();
+            });
             video.addEventListener('timeupdate', () => this.updatePlayhead());
+            console.log('✅ Video player listeners attached');
+        } else {
+            console.warn('❌ video-player element not found');
         }
     }
     
@@ -89,19 +137,14 @@ class AudioSyncApp {
         const file = input.files[0];
         if (!file) return;
         
-        console.log('🎬 Video upload started:', file.name, file.type, `${(file.size / 1024 / 1024).toFixed(1)} MB`);
-        
         this.videoFile = file;
         const videoPlayer = document.getElementById('video-player');
         const url = URL.createObjectURL(file);
         videoPlayer.src = url;
         
-        console.log('🎬 Video player src set, starting audio extraction...');
-        
         // Extract audio from video for waveform
         try {
             await this.extractVideoAudio(file);
-            console.log('✅ Video audio extraction completed');
         } catch (error) {
             console.error('❌ Video audio extraction failed:', error);
         }
@@ -114,7 +157,6 @@ class AudioSyncApp {
         const file = input.files[0];
         if (!file) return;
         
-        console.log('🎵 Audio upload started:', file.name, file.type, `${(file.size / 1024 / 1024).toFixed(1)} MB`);
         
         this.audioFile = file;
         await this.loadAudioFile(file, 'clean');
@@ -124,22 +166,14 @@ class AudioSyncApp {
     }
     
     async extractVideoAudio(videoFile) {
-        console.log('🔊 Starting video audio extraction for:', videoFile.name);
         
         try {
             // Alternative approach: decode the video file directly as audio
             const arrayBuffer = await videoFile.arrayBuffer();
-            console.log('🔊 Video file read as ArrayBuffer:', arrayBuffer.byteLength, 'bytes');
             
             try {
                 // Try to decode video file directly as audio (works for many video formats)
                 const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer.slice());
-                console.log('🔊 Successfully decoded video as audio:', {
-                    duration: audioBuffer.duration,
-                    sampleRate: audioBuffer.sampleRate,
-                    channels: audioBuffer.numberOfChannels,
-                    length: audioBuffer.length
-                });
                 
                 // Limit to first 20 seconds and draw
                 const displayDuration = Math.min(20, audioBuffer.duration);
@@ -165,7 +199,6 @@ class AudioSyncApp {
                 return audioBuffer;
                 
             } catch (decodeError) {
-                console.log('🔊 Direct decode failed, trying video element approach:', decodeError.message);
                 
                 // Fallback to video element approach
                 return this.extractVideoAudioViaElement(videoFile);
@@ -178,7 +211,6 @@ class AudioSyncApp {
     }
     
     async extractVideoAudioViaElement(videoFile) {
-        console.log('🔊 Using video element approach for:', videoFile.name);
         
         // Create a temporary video element to extract audio
         const videoElement = document.createElement('video');
@@ -188,13 +220,6 @@ class AudioSyncApp {
         
         return new Promise((resolve, reject) => {
             videoElement.addEventListener('loadedmetadata', async () => {
-                console.log('🔊 Video metadata loaded:', {
-                    duration: videoElement.duration,
-                    hasAudioTracks: !!videoElement.audioTracks,
-                    audioTracksLength: videoElement.audioTracks?.length || 0,
-                    videoWidth: videoElement.videoWidth,
-                    videoHeight: videoElement.videoHeight
-                });
                 
                 try {
                     // Ensure audio context is running
@@ -218,7 +243,6 @@ class AudioSyncApp {
                     source.connect(scriptProcessor);
                     scriptProcessor.connect(this.audioContext.destination);
                     
-                    console.log('🔊 Audio graph connected with script processor');
                     
                     // Set up capture
                     const duration = Math.min(20, videoElement.duration);
@@ -236,15 +260,9 @@ class AudioSyncApp {
                             channelData[sampleIndex++] = inputData[i];
                         }
                         
-                        // Check progress
-                        if (sampleIndex % 44100 === 0) {
-                            const secondsRecorded = sampleIndex / sampleRate;
-                            console.log(`🔊 Recorded ${secondsRecorded.toFixed(1)}s of audio`);
-                        }
                         
                         // Stop when we have enough data
                         if (videoElement.currentTime >= duration || sampleIndex >= channelData.length) {
-                            console.log('🔊 Audio capture completed via script processor');
                             
                             scriptProcessor.disconnect();
                             source.disconnect();
@@ -259,11 +277,6 @@ class AudioSyncApp {
                                 if (amplitude > 0.001) samplesWithData++;
                             }
                             
-                            console.log('🔊 Captured audio analysis:', {
-                                maxAmplitude: maxAmplitude,
-                                samplesWithData: samplesWithData,
-                                percentageWithData: (samplesWithData / Math.min(10000, channelData.length) * 100).toFixed(1) + '%'
-                            });
                             
                             this.originalAudioBuffer = audioBuffer;
                             this.drawWaveform(audioBuffer, 'original-waveform', '#ef4444');
@@ -274,7 +287,6 @@ class AudioSyncApp {
                     // Start playback
                     videoElement.currentTime = 0;
                     await videoElement.play();
-                    console.log('🔊 Video playback started for audio capture');
                     
                 } catch (error) {
                     console.error('❌ Error in video element audio extraction:', error);
@@ -292,19 +304,10 @@ class AudioSyncApp {
     }
     
     async loadAudioFile(file, type) {
-        console.log(`🎵 Loading ${type} audio file:`, file.name);
         
         try {
             const arrayBuffer = await file.arrayBuffer();
-            console.log(`🎵 File read into ArrayBuffer: ${arrayBuffer.byteLength} bytes`);
-            
             const fullAudioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
-            console.log(`🎵 Audio decoded:`, {
-                duration: fullAudioBuffer.duration,
-                sampleRate: fullAudioBuffer.sampleRate,
-                channels: fullAudioBuffer.numberOfChannels,
-                length: fullAudioBuffer.length
-            });
             
             // Check for audio data
             const channelData = fullAudioBuffer.getChannelData(0);
@@ -316,11 +319,6 @@ class AudioSyncApp {
                 if (amplitude > 0.001) samplesWithData++;
             }
             
-            console.log(`🎵 Audio analysis:`, {
-                maxAmplitude: maxAmplitude,
-                samplesWithData: samplesWithData,
-                percentageWithData: (samplesWithData / Math.min(10000, channelData.length) * 100).toFixed(1) + '%'
-            });
             
             // Limit to first 20 seconds for waveform display
             const displayDuration = Math.min(20, fullAudioBuffer.duration);
@@ -342,19 +340,13 @@ class AudioSyncApp {
                 }
             }
             
-            console.log(`🎵 Created display buffer for ${displayDuration}s`);
-            
             if (type === 'clean') {
                 this.cleanAudioBuffer = fullAudioBuffer; // Keep full buffer for playback
-                console.log('🎵 Drawing clean waveform...');
                 this.drawWaveform(displayBuffer, 'clean-waveform', '#3b82f6');
             } else {
                 this.originalAudioBuffer = fullAudioBuffer; // Keep full buffer for playback
-                console.log('🎵 Drawing original waveform...');
                 this.drawWaveform(displayBuffer, 'original-waveform', '#ef4444');
             }
-            
-            console.log(`✅ ${type} audio loaded: ${fullAudioBuffer.duration.toFixed(2)}s (displaying first ${displayDuration.toFixed(1)}s)`);
         } catch (error) {
             console.error(`❌ Error loading ${type} audio:`, error);
             // Draw placeholder on error
@@ -363,15 +355,11 @@ class AudioSyncApp {
     }
     
     drawWaveform(audioBuffer, canvasId, color) {
-        console.log(`🎨 Drawing waveform for ${canvasId} with color ${color}`);
-        
         const canvas = document.getElementById(canvasId);
         if (!canvas) {
             console.error(`❌ Canvas not found: ${canvasId}`);
             return;
         }
-        
-        console.log(`🎨 Canvas found: ${canvas.width}x${canvas.height}`);
         
         const ctx = canvas.getContext('2d');
         const width = canvas.width;
@@ -380,7 +368,6 @@ class AudioSyncApp {
         ctx.clearRect(0, 0, width, height);
         
         if (!audioBuffer) {
-            console.log(`🎨 No audio buffer, drawing placeholder for ${canvasId}`);
             // Draw placeholder with loading message
             ctx.strokeStyle = color + '40';
             ctx.lineWidth = 1;
@@ -399,12 +386,6 @@ class AudioSyncApp {
             return;
         }
         
-        console.log(`🎨 Audio buffer provided:`, {
-            duration: audioBuffer.duration,
-            sampleRate: audioBuffer.sampleRate,
-            channels: audioBuffer.numberOfChannels,
-            length: audioBuffer.length
-        });
         
         const channelData = audioBuffer.getChannelData(0);
         const samples = width * 2; // Higher resolution for smoother curves
@@ -607,23 +588,34 @@ class AudioSyncApp {
     }
     
     updateOffsetIndicator() {
+        console.log(`📊 updateOffsetIndicator called with offset: ${this.audioOffset}`);
+        
         const indicator = document.getElementById('offset-indicator');
-        if (!indicator) return;
+        if (!indicator) {
+            console.warn('❌ offset-indicator element not found');
+            return;
+        }
         
         // Map offset to visual position (-5s to +5s range)
         const maxOffset = 5;
         const normalizedOffset = Math.max(-1, Math.min(1, this.audioOffset / maxOffset));
         const leftPercent = 50 + (normalizedOffset * 50);
         
+        console.log(`📍 Moving indicator to ${leftPercent}% (normalized: ${normalizedOffset})`);
         indicator.style.left = `${leftPercent}%`;
         
         // Update sync status
         const status = document.getElementById('sync-status');
         if (status) {
-            status.textContent = `${this.audioOffset > 0 ? '+' : ''}${this.audioOffset.toFixed(2)}s`;
+            const statusText = `${this.audioOffset > 0 ? '+' : ''}${this.audioOffset.toFixed(2)}s`;
+            console.log(`📝 Updating status text to: ${statusText}`);
+            status.textContent = statusText;
+        } else {
+            console.warn('❌ sync-status element not found');
         }
         
         // Re-draw waveforms with offset visualization
+        console.log('🎨 Redrawing waveforms with offset...');
         this.redrawWaveformsWithOffset();
     }
     
@@ -642,7 +634,6 @@ class AudioSyncApp {
             // Apply offset when copying data - FIXED LOGIC
             const offsetSamples = Math.floor(this.audioOffset * this.cleanAudioBuffer.sampleRate);
             
-            console.log(`🎨 Redrawing waveform with offset: ${this.audioOffset.toFixed(2)}s (${offsetSamples} samples)`);
             
             for (let channel = 0; channel < this.cleanAudioBuffer.numberOfChannels; channel++) {
                 const originalData = this.cleanAudioBuffer.getChannelData(channel);
@@ -665,11 +656,6 @@ class AudioSyncApp {
                     }
                 }
                 
-                if (channel === 0) { // Only log once
-                    const silenceSeconds = silenceSamples / this.cleanAudioBuffer.sampleRate;
-                    const audioSeconds = audioSamples / this.cleanAudioBuffer.sampleRate;
-                    console.log(`🎨 Display composition: ${silenceSeconds.toFixed(2)}s silence + ${audioSeconds.toFixed(2)}s audio`);
-                }
             }
             
             this.drawWaveformWithOffset(displayBuffer, 'clean-waveform', '#3b82f6', this.audioOffset);
@@ -778,20 +764,15 @@ class AudioSyncApp {
             // Negative offset = advance audio (audio plays earlier)
             const audioPosition = videoTime - this.audioOffset;
             
-            console.log(`🔊 Starting audio: videoTime=${videoTime.toFixed(2)}s, offset=${this.audioOffset.toFixed(2)}s, audioPosition=${audioPosition.toFixed(2)}s`);
-            
             if (audioPosition < 0) {
                 // Audio should start in the future (delay)
                 const delayTime = -audioPosition;
-                console.log(`🔊 Delaying audio start by ${delayTime.toFixed(2)}s`);
                 this.cleanSource.start(this.audioContext.currentTime + delayTime, 0);
             } else if (audioPosition >= this.cleanAudioBuffer.duration) {
                 // Audio should start beyond the end of the track (silence)
-                console.log(`🔊 Audio position ${audioPosition.toFixed(2)}s is beyond track duration ${this.cleanAudioBuffer.duration.toFixed(2)}s`);
                 // Don't start audio at all
             } else {
                 // Audio should start immediately from audioPosition
-                console.log(`🔊 Starting audio immediately from position ${audioPosition.toFixed(2)}s`);
                 this.cleanSource.start(0, audioPosition);
             }
         }
@@ -838,7 +819,6 @@ class AudioSyncApp {
         // Calculate appropriate resolution and AVC level
         const { width: videoWidth, height: videoHeight, avcLevel } = this.calculateVideoSettings(originalWidth, originalHeight);
         
-        console.log(`🎬 Video metadata: ${originalWidth}x${originalHeight} -> ${videoWidth}x${videoHeight}, ${duration.toFixed(2)}s, AVC level ${avcLevel}`);
         
         exportStatus.textContent = 'Preparing synchronized audio...';
         
@@ -848,7 +828,6 @@ class AudioSyncApp {
         // Determine final video duration
         const finalVideoDuration = this.clipVideo ? finalDuration : duration;
         
-        console.log(`🎬 Final video duration: ${finalVideoDuration.toFixed(2)}s (${this.clipVideo ? 'clipped' : 'original'})`);
         
         exportStatus.textContent = 'Initializing video encoder...';
         
@@ -946,7 +925,6 @@ class AudioSyncApp {
     }
     
     async createSynchronizedAudio(videoDuration) {
-        console.log(`🎵 Creating synchronized audio track (clip mode: ${this.clipVideo})...`);
         
         const sampleRate = this.cleanAudioBuffer.sampleRate;
         const channels = this.cleanAudioBuffer.numberOfChannels;
@@ -959,12 +937,10 @@ class AudioSyncApp {
             const cleanDuration = this.cleanAudioBuffer.duration;
             finalDuration = cleanDuration + Math.max(0, this.audioOffset); // Only add positive offset
             totalSamples = Math.floor(finalDuration * sampleRate);
-            console.log(`🎵 Clip mode: Clean audio ${cleanDuration.toFixed(2)}s + offset ${this.audioOffset.toFixed(2)}s = ${finalDuration.toFixed(2)}s`);
         } else {
             // Silence mode: use full video duration
             finalDuration = videoDuration;
             totalSamples = Math.floor(videoDuration * sampleRate);
-            console.log(`🎵 Silence mode: Full video duration ${videoDuration.toFixed(2)}s, offset ${this.audioOffset.toFixed(2)}s`);
         }
         
         // Create output buffer
@@ -1034,7 +1010,6 @@ class AudioSyncApp {
             const scale = Math.sqrt(maxArea / area);
             width = Math.floor(width * scale / 2) * 2; // Ensure even numbers
             height = Math.floor(height * scale / 2) * 2;
-            console.log(`🎬 Downscaling video by ${(scale * 100).toFixed(1)}% to fit AVC level`);
         }
         
         return { width, height, avcLevel };
@@ -1045,7 +1020,6 @@ class AudioSyncApp {
         const pixels = width * height;
         const baseRate = 0.1; // bits per pixel per frame
         const bitrate = Math.max(500000, Math.min(8000000, pixels * fps * baseRate));
-        console.log(`🎬 Calculated bitrate: ${(bitrate / 1000000).toFixed(1)} Mbps`);
         return bitrate;
     }
     
@@ -1060,8 +1034,6 @@ class AudioSyncApp {
         const frameInterval = 1 / fps;
         const totalFrames = Math.floor(duration * fps);
         
-        console.log(`🎬 Processing ${totalFrames} frames at ${fps} fps (${originalWidth}x${originalHeight} -> ${targetWidth}x${targetHeight})...`);
-        
         // Calculate scaling to fit target resolution while maintaining aspect ratio
         const scaleX = targetWidth / originalWidth;
         const scaleY = targetHeight / originalHeight;
@@ -1071,8 +1043,6 @@ class AudioSyncApp {
         const scaledHeight = originalHeight * scale;
         const offsetX = (targetWidth - scaledWidth) / 2;
         const offsetY = (targetHeight - scaledHeight) / 2;
-        
-        console.log(`🎬 Scaling: ${scale.toFixed(3)}x, offset: ${offsetX.toFixed(1)}, ${offsetY.toFixed(1)}`);
         
         for (let frameNum = 0; frameNum < totalFrames; frameNum++) {
             const timestamp = frameNum * frameInterval;
@@ -1119,7 +1089,6 @@ class AudioSyncApp {
             }
         }
         
-        console.log(`✅ Completed processing ${totalFrames} video frames`);
     }
     
     async processAudio(audioBuffer, encoder) {
@@ -1128,7 +1097,6 @@ class AudioSyncApp {
         const frameSize = 1024; // AAC frame size
         const totalFrames = Math.floor(audioBuffer.length / frameSize);
         
-        console.log(`🎵 Processing ${totalFrames} audio frames...`);
         
         for (let frameNum = 0; frameNum < totalFrames; frameNum++) {
             const start = frameNum * frameSize;
@@ -1175,7 +1143,6 @@ class AudioSyncApp {
     }
     
     async createMP4File(videoChunks, audioChunks, metadata) {
-        console.log(`🎬 Creating MP4 with mp4box.js: ${videoChunks.length} video + ${audioChunks.length} audio chunks`);
         
         return new Promise((resolve, reject) => {
             try {
@@ -1192,7 +1159,6 @@ class AudioSyncApp {
                     avcDecoderConfigRecord: this.createAVCDecoderConfigRecord()
                 });
                 
-                console.log(`🎬 Added video track ${videoTrackId}: ${metadata.width}x${metadata.height}`);
                 
                 // Add audio track
                 const audioTrackId = file.addTrack({
@@ -1204,7 +1170,6 @@ class AudioSyncApp {
                     audioDecoderConfigRecord: this.createAACDecoderConfigRecord(metadata.sampleRate, metadata.channels)
                 });
                 
-                console.log(`🎬 Added audio track ${audioTrackId}: ${metadata.sampleRate}Hz, ${metadata.channels}ch`);
                 
                 // Add video samples
                 const frameDuration = 1000 / metadata.fps; // milliseconds per frame
@@ -1221,7 +1186,6 @@ class AudioSyncApp {
                     file.addSample(sample);
                 });
                 
-                console.log(`🎬 Added ${videoChunks.length} video samples`);
                 
                 // Add audio samples
                 const audioFrameDuration = (1024 / metadata.sampleRate) * 1000; // AAC frame duration in ms
@@ -1238,13 +1202,11 @@ class AudioSyncApp {
                     file.addSample(sample);
                 });
                 
-                console.log(`🎬 Added ${audioChunks.length} audio samples`);
                 
                 // Collect output chunks
                 const outputChunks = [];
                 
                 file.onReady = (info) => {
-                    console.log('🎬 MP4 file ready:', info);
                     file.setExtractionOptions(videoTrackId, 'video', { nbSamples: 100 });
                     file.setExtractionOptions(audioTrackId, 'audio', { nbSamples: 100 });
                     file.start();
@@ -1269,7 +1231,6 @@ class AudioSyncApp {
                             offset += chunk.byteLength;
                         }
                         
-                        console.log(`✅ MP4 creation complete: ${totalSize} bytes`);
                         resolve(new Blob([finalBuffer], { type: 'video/mp4' }));
                     }
                 };
@@ -1334,9 +1295,23 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Global functions for UI controls
 function adjustOffset(delta) {
-    if (!audioSyncApp) return;
+    if (!audioSyncApp) {
+        console.warn('❌ audioSyncApp not initialized');
+        return;
+    }
+    
+    const oldValue = audioSyncApp.audioOffset;
     audioSyncApp.audioOffset += delta;
-    document.getElementById('audio-offset').value = audioSyncApp.audioOffset.toFixed(2);
+    console.log(`⚡ adjustOffset: ${oldValue} + ${delta} = ${audioSyncApp.audioOffset}`);
+    
+    const offsetInput = document.getElementById('audio-offset');
+    if (offsetInput) {
+        offsetInput.value = audioSyncApp.audioOffset.toFixed(2);
+        console.log(`📝 Updated input field to: ${offsetInput.value}`);
+    } else {
+        console.warn('❌ audio-offset input not found');
+    }
+    
     audioSyncApp.updateOffsetIndicator(); // This now triggers waveform redraw
 }
 
@@ -1440,7 +1415,6 @@ async function exportVideoServer() {
         }
         
         const { job_id } = await response.json();
-        console.log(`🎬 Server export started with job ID: ${job_id}`);
         
         // Monitor progress with Server-Sent Events
         await monitorExportProgress(job_id, exportStatus);
@@ -1471,7 +1445,6 @@ async function monitorExportProgress(jobId, statusElement) {
                 // Update status display
                 const progressBar = updateProgressDisplay(data, statusElement);
                 
-                console.log(`🎬 Export progress: ${data.progress}% - ${data.message}`);
                 
                 if (data.status === 'complete') {
                     eventSource.close();
@@ -1589,7 +1562,6 @@ async function downloadExportedFile(jobId) {
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
         
-        console.log(`✅ Downloaded: ${filename}`);
         
     } catch (error) {
         console.error('Download failed:', error);

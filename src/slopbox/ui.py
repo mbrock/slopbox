@@ -165,7 +165,9 @@ def render_base_layout():
             yield
 
 
-def render_aspect_ratio_option(is_checked, ratio, scaled_width, scaled_height):
+def render_aspect_ratio_option(
+    is_checked, ratio, scaled_width, scaled_height
+):
     with tag.label(
         "flex flex-col items-center justify-end cursor-pointer relative p-2",
     ):

@@ -38,7 +38,8 @@ def render_pending_image(image):
     # Calculate aspect ratio style based on the spec
     ratio_parts = [float(x) for x in image.spec.aspect_ratio.split(":")]
     aspect_ratio = ratio_parts[0] / ratio_parts[1]
-    # For wide/landscape images, fix the width. For tall/portrait images, fix the height
+    # For wide/landscape images, fix the width. For tall/portrait images,
+    # fix the height
     size_classes = "w-256" if aspect_ratio >= 1 else "h-256"
     aspect_style = f"aspect-[{image.spec.aspect_ratio.replace(':', '/')}]"
 
@@ -52,7 +53,10 @@ def render_pending_image(image):
         "z-10",
         "flex items-center justify-center",
     ):
-        attr("hx-get", app.url_path_for("check_status", generation_id=image.uuid))
+        attr(
+            "hx-get",
+            app.url_path_for("check_status", generation_id=image.uuid),
+        )
         attr("hx-trigger", "load delay:3s")
         attr("hx-swap", "outerHTML")
         with tag.span("text-gray-500"):
@@ -62,7 +66,9 @@ def render_pending_image(image):
 def render_complete_image(image: Image):
     with tag.div(
         "relative group cursor-pointer",
-        hx_post=app.url_path_for("toggle_like_endpoint", image_uuid=image.uuid),
+        hx_post=app.url_path_for(
+            "toggle_like_endpoint", image_uuid=image.uuid
+        ),
         hx_target=f"#like-indicator-{image.uuid}",
         hx_swap="outerHTML",
     ):
@@ -72,7 +78,9 @@ def render_complete_image(image: Image):
             "object-contain flex-0",
             "bg-white p-2",
             "shadow-xl shadow-neutral-500",
-            "border-amber-200 border-4" if image.liked else "border border-neutral-500",
+            "border-amber-200 border-4"
+            if image.liked
+            else "border border-neutral-500",
             "z-10",
             src=get_image_url(image),
             alt=image.spec.prompt if image.spec else "",

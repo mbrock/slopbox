@@ -4,7 +4,32 @@ Command line entry points for slopbox.
 """
 
 import sys
+
 import click
+
+
+def _create_videosync_app():
+    """Factory function to create the videosync app for uvicorn reload."""
+    from fastapi import FastAPI
+    from fastapi.staticfiles import StaticFiles
+    from tagflow import DocumentMiddleware
+
+    from slopbox.videosync import router, video_sync
+
+    app = FastAPI(
+        title="Video Sync Tool",
+        description=(
+            "Browser-based video-audio synchronization with waveform "
+            "visualization"
+        ),
+    )
+    app.add_middleware(DocumentMiddleware)
+    app.mount("/static", StaticFiles(directory="static"), name="static")
+    app.include_router(router)
+
+    app.get("/")(video_sync)
+
+    return app
 
 
 @click.command()
@@ -12,16 +37,22 @@ import click
 @click.option("--port", default=8000, type=int, help="Port to bind to")
 @click.option("--no-reload", is_flag=True, help="Disable auto-reload")
 def slopbox_cli(host, port, no_reload):
-    """Slopbox - AI image generation platform with gallery and prompt management."""
+    """Slopbox - AI image generation platform with gallery and prompt
+    management."""
     click.echo("🎨 Starting Slopbox")
-    click.echo("   AI image generation platform with gallery and prompt management")
+    click.echo(
+        "   AI image generation platform with gallery and prompt management"
+    )
     click.echo("   Includes video sync tool at /video-sync")
     click.echo(f"   Server will be available at: http://{host}:{port}")
     click.echo()
-    
+
     try:
         import uvicorn
-        uvicorn.run("slopbox.app:app", host=host, port=port, reload=not no_reload)
+
+        uvicorn.run(
+            "slopbox.app:app", host=host, port=port, reload=not no_reload
+        )
     except KeyboardInterrupt:
         click.echo("\n👋 Slopbox stopped")
         sys.exit(0)
@@ -32,30 +63,53 @@ def slopbox_cli(host, port, no_reload):
 @click.option("--port", default=8000, type=int, help="Port to bind to")
 @click.option("--no-reload", is_flag=True, help="Disable auto-reload")
 def videosync_cli(host, port, no_reload):
-    """Video Sync Tool - Browser-based video-audio synchronization with waveform visualization."""
+    """Video Sync Tool - Browser-based video-audio synchronization with
+    waveform visualization."""
     click.echo("🎬 Starting Video Sync Tool")
-    click.echo("   Browser-based video-audio synchronization with waveform visualization")
-    click.echo("   Upload video and audio files to sync them with real-time preview")
+    click.echo(
+        "   Browser-based video-audio synchronization with waveform "
+        "visualization"
+    )
+    click.echo(
+        "   Upload video and audio files to sync them with real-time preview"
+    )
     click.echo(f"   Server will be available at: http://{host}:{port}")
     click.echo()
-    
+
     try:
         # Create the standalone videosync app
         from fastapi import FastAPI
         from fastapi.staticfiles import StaticFiles
         from tagflow import DocumentMiddleware
+
         from slopbox.videosync import router
-        
+
         app = FastAPI(
             title="Video Sync Tool",
-            description="Browser-based video-audio synchronization with real-time waveform visualization"
+            description=(
+                "Browser-based video-audio synchronization with real-time "
+                "waveform visualization"
+            ),
         )
         app.add_middleware(DocumentMiddleware)
         app.mount("/static", StaticFiles(directory="static"), name="static")
         app.include_router(router)
-        
+
         import uvicorn
-        uvicorn.run(app, host=host, port=port, reload=not no_reload)
+
+        if not no_reload:
+            # Use import string for reload functionality - reference the
+            # standalone app
+            uvicorn.run(
+                "slopbox.cli:_create_videosync_app",
+                host=host,
+                port=port,
+                reload=True,
+                factory=True,
+            )
+        else:
+            # Use app object when reload is disabled
+            uvicorn.run(app, host=host, port=port, reload=False)
     except KeyboardInterrupt:
         click.echo("\n👋 Video sync stopped")
         sys.exit(0)

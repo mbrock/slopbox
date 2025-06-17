@@ -52,7 +52,9 @@ def make_gallery_url(page: int, sort_by: str, liked_only: bool) -> str:
     return app.url_path_for("gallery") + "?" + urlencode(params)
 
 
-def render_pagination_controls(current_page, total_pages, sort_by, liked_only):
+def render_pagination_controls(
+    current_page, total_pages, sort_by, liked_only
+):
     """Render the pagination controls."""
     with tag.div("flex justify-end gap-4 p-4"):
         if current_page > 1:
@@ -106,7 +108,9 @@ def render_sort_options(sort_by, liked_only):
                 text("Filters:")
             # Liked filter
             with tag.a(
-                Styles.filter_button_active if liked_only else Styles.filter_button,
+                Styles.filter_button_active
+                if liked_only
+                else Styles.filter_button,
                 href=make_gallery_url(1, sort_by, not liked_only),
             ):
                 with tag.span("text-sm"):
@@ -135,7 +139,10 @@ def render_slideshow_link():
 def render_delete_unliked_button():
     attr("hx-post", app.url_path_for("delete_unliked_images"))
     attr("hx-swap", "outerHTML")
-    attr("hx-confirm", "This will permanently delete all unliked images. Continue?")
+    attr(
+        "hx-confirm",
+        "This will permanently delete all unliked images. Continue?",
+    )
     with tag.span("text-sm"):
         text("🗑️")
     text("Delete Unliked")

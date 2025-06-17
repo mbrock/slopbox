@@ -38,14 +38,16 @@ class ImageSpec:
         aspect_ratio: str,
         style: str = "realistic_image/natural_light",
     ) -> "ImageSpec":
-        """Create a new image spec, or return an existing one with the same parameters."""
+        """Create a new image spec, or return an existing one with the
+        same parameters."""
         with conn:
             # Check for existing spec
             cur = conn.execute(
                 """
                 SELECT id, prompt, model, aspect_ratio, style, created
                 FROM image_specs
-                WHERE prompt = ? AND model = ? AND aspect_ratio = ? AND style = ?
+                WHERE prompt = ? AND model = ? AND aspect_ratio = ?
+                AND style = ?
                 """,
                 (prompt, model, aspect_ratio, style),
             )
@@ -115,7 +117,10 @@ def get_paginated_images(page_size: int, offset: int) -> List[Image]:
             (page_size, offset),
         )
         rows = cur.fetchall()
-        return [Image.from_row(row[:6], ImageSpec.from_row(row[6:])) for row in rows]
+        return [
+            Image.from_row(row[:6], ImageSpec.from_row(row[6:]))
+            for row in rows
+        ]
 
 
 def create_pending_generation(
@@ -232,7 +237,10 @@ def get_spec_generations(spec_id: int) -> List[Image]:
             (spec_id,),
         )
         rows = cur.fetchall()
-        return [Image.from_row(row[:6], ImageSpec.from_row(row[6:])) for row in rows]
+        return [
+            Image.from_row(row[:6], ImageSpec.from_row(row[6:]))
+            for row in rows
+        ]
 
 
 def get_spec_count() -> int:
@@ -243,7 +251,8 @@ def get_spec_count() -> int:
 
 
 def get_gallery_total_pages(liked_only: bool = False) -> int:
-    """Get the total number of pages in the gallery based on distinct dates with content."""
+    """Get the total number of pages in the gallery based on distinct
+    dates with content."""
     with conn:
         date_query = """
             SELECT COUNT(DISTINCT date(s.created))
@@ -300,7 +309,9 @@ def get_paginated_specs_with_images(
         """
 
         liked_filter = (
-            "AND i.uuid IN (SELECT image_uuid FROM likes)" if liked_only else ""
+            "AND i.uuid IN (SELECT image_uuid FROM likes)"
+            if liked_only
+            else ""
         )
 
         # Get the target dates for this page
@@ -367,7 +378,9 @@ def get_paginated_specs_with_images(
         specs_by_id = {spec.id: spec for spec in specs}
 
         logger.info(f"Executing image query for spec_ids: {spec_ids}")
-        cur = conn.execute(image_query.format(placeholders=placeholders), spec_ids)
+        cur = conn.execute(
+            image_query.format(placeholders=placeholders), spec_ids
+        )
 
         # Group images by spec_id
         images_by_spec = {}
@@ -456,11 +469,16 @@ def get_random_weighted_image() -> Tuple[Optional[Image], Optional[int]]:
         )
         row = cur.fetchone()
         if row:
-            return (Image.from_row(row[:6], ImageSpec.from_row(row[6:])), count)
+            return (
+                Image.from_row(row[:6], ImageSpec.from_row(row[6:])),
+                count,
+            )
         return (None, None)
 
 
-def get_random_spec_image(spec_id: int) -> Tuple[Optional[Image], Optional[int]]:
+def get_random_spec_image(
+    spec_id: int,
+) -> Tuple[Optional[Image], Optional[int]]:
     """Get a random completed image from a specific spec.
 
     Returns:
@@ -496,7 +514,10 @@ def get_random_spec_image(spec_id: int) -> Tuple[Optional[Image], Optional[int]]
         )
         row = cur.fetchone()
         if row:
-            return (Image.from_row(row[:6], ImageSpec.from_row(row[6:])), count)
+            return (
+                Image.from_row(row[:6], ImageSpec.from_row(row[6:])),
+                count,
+            )
         return (None, None)
 
 

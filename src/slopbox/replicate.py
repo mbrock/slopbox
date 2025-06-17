@@ -10,11 +10,14 @@ from slopbox.model import update_generation_status
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
-replicate_client = replicate.Client(api_token=os.environ.get("REPLICATE_API_KEY"))
+replicate_client = replicate.Client(
+    api_token=os.environ.get("REPLICATE_API_KEY")
+)
 
 
 async def generate_image(
@@ -51,7 +54,9 @@ async def generate_image(
         else:
             model_inputs["aspect_ratio"] = aspect_ratio
             model_inputs["safety_tolerance"] = 6
-            logger.info(f"Using standard settings with aspect_ratio={aspect_ratio}")
+            logger.info(
+                f"Using standard settings with aspect_ratio={aspect_ratio}"
+            )
 
         logger.info("Calling Replicate API to generate image...")
         # Generate the image
@@ -84,6 +89,7 @@ async def generate_image(
 
     except Exception as e:
         logger.error(
-            f"Error generating image for ID {generation_id}: {str(e)}", exc_info=True
+            f"Error generating image for ID {generation_id}: {str(e)}",
+            exc_info=True,
         )
         update_generation_status(generation_id, "error")

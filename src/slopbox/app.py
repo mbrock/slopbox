@@ -38,8 +38,11 @@ from slopbox.model import (
     toggle_like,
 )
 from slopbox.pageant import pageant, pageant_choose
-from slopbox.prompt.form import render_prompt_form_content, render_prompt_part_input
-from slopbox.ui import render_base_layout, Styles
+from slopbox.prompt.form import (
+    render_prompt_form_content,
+    render_prompt_part_input,
+)
+from slopbox.ui import render_base_layout
 from slopbox.videosync import router as videosync_router
 
 app.add_middleware(DocumentMiddleware)
@@ -79,13 +82,21 @@ async def gallery(
 
     if request.headers.get("HX-Request"):
         return render_image_gallery(
-            specs_with_images, page, total_pages, sort_by, liked_only=liked_only
+            specs_with_images,
+            page,
+            total_pages,
+            sort_by,
+            liked_only=liked_only,
         )
 
     # Return the gallery content
     with render_base_layout():
         render_image_gallery(
-            specs_with_images, page, total_pages, sort_by, liked_only=liked_only
+            specs_with_images,
+            page,
+            total_pages,
+            sort_by,
+            liked_only=liked_only,
         )
 
 
@@ -101,10 +112,13 @@ async def generate(
     prompt_parts = [
         value.strip()
         for key, value in form_data.items()
-        if key.startswith("prompt_part_") and isinstance(value, str) and value.strip()
+        if key.startswith("prompt_part_")
+        and isinstance(value, str)
+        and value.strip()
     ]
 
-    # Check if we're dealing with sentences (any part ends with period + space)
+    # Check if we're dealing with sentences (any part ends with
+    # period + space)
     if any(re.search(r"\.(?:\s+|\n+)", part + " ") for part in prompt_parts):
         prompt = " ".join(prompt_parts)  # Join with spaces for sentences
     else:
@@ -116,7 +130,9 @@ async def generate(
     generation_id = str(uuid.uuid4())
 
     # Create pending record
-    create_pending_generation(generation_id, prompt, model, aspect_ratio, style)
+    create_pending_generation(
+        generation_id, prompt, model, aspect_ratio, style
+    )
 
     # Start background task
     asyncio.create_task(
@@ -152,12 +168,15 @@ async def add_prompt_part(request: Request):
     previous_parts = [
         value.strip()
         for key, value in form_data.items()
-        if key.startswith("prompt_part_") and isinstance(value, str) and value.strip()
+        if key.startswith("prompt_part_")
+        and isinstance(value, str)
+        and value.strip()
     ]
 
     all_parts = previous_parts + [part]
 
-    # Check if we're dealing with sentences (any part ends with period + space)
+    # Check if we're dealing with sentences (any part ends with
+    # period + space)
     if any(re.search(r"\.(?:\s+|\n+)", p + " ") for p in all_parts):
         prompt = " ".join(all_parts)  # Join with spaces for sentences
     else:
@@ -209,7 +228,9 @@ async def copy_prompt(uuid_str: str):
 
 
 @app.post("/regenerate/{spec_id}")
-async def regenerate(spec_id: int, style: str = Form("realistic_image/natural_light")):
+async def regenerate(
+    spec_id: int, style: str = Form("realistic_image/natural_light")
+):
     """Create a new generation using an existing image spec."""
     generation_id = str(uuid.uuid4())
 
@@ -230,7 +251,9 @@ async def regenerate(spec_id: int, style: str = Form("realistic_image/natural_li
         prompt, model, aspect_ratio, style = row
 
     # Create pending record
-    create_pending_generation(generation_id, prompt, model, aspect_ratio, style)
+    create_pending_generation(
+        generation_id, prompt, model, aspect_ratio, style
+    )
 
     # Start background task
     asyncio.create_task(
@@ -270,7 +293,9 @@ async def regenerate_8x(
         generation_id = str(uuid.uuid4())
 
         # Create pending record
-        create_pending_generation(generation_id, prompt, model, aspect_ratio, style)
+        create_pending_generation(
+            generation_id, prompt, model, aspect_ratio, style
+        )
 
         # Start background task
         asyncio.create_task(
@@ -301,7 +326,9 @@ async def copy_spec(spec_id: int):
         row = cur.fetchone()
         if row:
             prompt, model, aspect_ratio, style = row
-            return render_prompt_form_content(prompt, model, aspect_ratio, style)
+            return render_prompt_form_content(
+                prompt, model, aspect_ratio, style
+            )
     return render_prompt_form_content()
 
 
@@ -421,7 +448,8 @@ async def delete_unliked_images():
             placeholders = ",".join("?" * len(image_ids))
 
             conn.execute(
-                f"DELETE FROM images_v3 WHERE id IN ({placeholders})", image_ids
+                f"DELETE FROM images_v3 WHERE id IN ({placeholders})",
+                image_ids,
             )
             deleted_images = len(image_ids)
 
@@ -445,16 +473,21 @@ async def delete_unliked_images():
             WHERE i.status = 'complete' AND i.filepath IS NOT NULL
             """
         )
-        liked_filepaths = {os.path.basename(row[0]) for row in cur.fetchall() if row[0]}
+        liked_filepaths = {
+            os.path.basename(row[0]) for row in cur.fetchall() if row[0]
+        }
 
-        # Scan the image directory and delete any files not in the liked_filepaths set
+        # Scan the image directory and delete any files not in the
+        # liked_filepaths set
         for filename in os.listdir(IMAGE_DIR):
             if filename.endswith(".png") and filename not in liked_filepaths:
                 try:
                     os.remove(os.path.join(IMAGE_DIR, filename))
                     orphaned_files += 1
                 except Exception as e:
-                    logger.error(f"Failed to delete orphaned file {filename}: {e}")
+                    logger.error(
+                        f"Failed to delete orphaned file {filename}: {e}"
+                    )
 
     # Return a summary of the operation
     with tag.div("p-4 bg-green-100 rounded-md"):

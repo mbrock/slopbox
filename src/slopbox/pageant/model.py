@@ -70,7 +70,9 @@ def initialize_tables():
         """)
 
 
-def get_random_pair_for_comparison() -> Tuple[Optional[Image], Optional[Image]]:
+def get_random_pair_for_comparison() -> Tuple[
+    Optional[Image], Optional[Image]
+]:
     """Get two random liked images for comparison that haven't been compared too many times."""
     with conn:
         # Get two random liked images, preferring those with fewer comparisons
@@ -97,8 +99,12 @@ def get_random_pair_for_comparison() -> Tuple[Optional[Image], Optional[Image]]:
         if len(rows) < 2:
             return None, None
         return (
-            Image.from_row(rows[0][:6], ImageSpec.from_row(rows[0][6:]), liked=True),
-            Image.from_row(rows[1][:6], ImageSpec.from_row(rows[1][6:]), liked=True),
+            Image.from_row(
+                rows[0][:6], ImageSpec.from_row(rows[0][6:]), liked=True
+            ),
+            Image.from_row(
+                rows[1][:6], ImageSpec.from_row(rows[1][6:]), liked=True
+            ),
         )
 
 
@@ -130,7 +136,9 @@ def record_comparison(winner_uuid: str, loser_uuid: str) -> None:
         winner_rating = ratings[winner_uuid]
         loser_rating = ratings[loser_uuid]
 
-        expected_winner = 1.0 / (1.0 + 10 ** ((loser_rating - winner_rating) / 400.0))
+        expected_winner = 1.0 / (
+            1.0 + 10 ** ((loser_rating - winner_rating) / 400.0)
+        )
         expected_loser = 1.0 - expected_winner
 
         new_winner_rating = winner_rating + K * (1 - expected_winner)
@@ -191,7 +199,9 @@ def get_top_rated_images(limit: int = 10) -> List[Tuple[Image, float]]:
         rows = cur.fetchall()
         return [
             (
-                Image.from_row(row[:6], ImageSpec.from_row(row[6:11]), liked=True),
+                Image.from_row(
+                    row[:6], ImageSpec.from_row(row[6:11]), liked=True
+                ),
                 row[11],
             )
             for row in rows

@@ -18,7 +18,9 @@ async def cleanup_stale_generations():
             await asyncio.sleep(300)
         except Exception as e:
             print(f"Error cleaning up stale generations: {e}")
-            await asyncio.sleep(60)  # Wait a minute before retrying if there's an error
+            await asyncio.sleep(
+                60
+            )  # Wait a minute before retrying if there's an error
 
 
 @asynccontextmanager
@@ -29,9 +31,13 @@ async def lifespan(app: FastAPI):
     anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
 
     if not replicate_key:
-        raise RuntimeError("REPLICATE_API_KEY environment variable is not set")
+        raise RuntimeError(
+            "REPLICATE_API_KEY environment variable is not set"
+        )
     if not anthropic_key:
-        raise RuntimeError("ANTHROPIC_API_KEY environment variable is not set")
+        raise RuntimeError(
+            "ANTHROPIC_API_KEY environment variable is not set"
+        )
 
     # Create tables and migrate data
     create_tables()
@@ -48,4 +54,6 @@ async def lifespan(app: FastAPI):
         pass
 
 
-app = FastAPI(title="Slopbox", default_response_class=TagResponse, lifespan=lifespan)
+app = FastAPI(
+    title="Slopbox", default_response_class=TagResponse, lifespan=lifespan
+)

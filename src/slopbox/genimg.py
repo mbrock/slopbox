@@ -1,19 +1,12 @@
-import asyncio
-import hashlib
-import json
 import logging
 import os
-import time
 from enum import Enum
-from io import BytesIO
-from typing import Dict, Optional
 
 import aiofiles
 import aiohttp
 import replicate
 import replicate.helpers
 from openai import AsyncOpenAI
-from PIL import Image
 
 from slopbox.base import ASPECT_TO_RECRAFT, DEFAULT_MODEL, IMAGE_DIR
 from slopbox.model import update_generation_status
@@ -140,15 +133,21 @@ async def generate_image(
     try:
         logger.info(f"Starting image generation for ID: {generation_id}")
         logger.info(
-            f"Using model: {model}, aspect ratio: {aspect_ratio}, style: {style}"
+            f"Using model: {model}, aspect ratio: {aspect_ratio}, "
+            f"style: {style}"
         )
 
-        # Determine if we should use Replicate or Recraft based on the model name
+        # Determine if we should use Replicate or Recraft based on the
+        # model name
         if "recraft" in model.lower():
             # Use Recraft via OpenAI API
             provider = ModelProvider.RECRAFT
             # Use the style directly from the form instead of mapping
-            style_name = style if style in [s.value for s in ImageStyle] else "realistic_image/natural_light"
+            style_name = (
+                style
+                if style in [s.value for s in ImageStyle]
+                else "realistic_image/natural_light"
+            )
 
             # Get full style and substyle
             if "/" in style_name:
@@ -170,7 +169,8 @@ async def generate_image(
             # Generate the image
             response = await recraft_client.images.generate(
                 prompt=prompt,
-                size="1024x1024",  # This will be overridden by extra_body params
+                # This will be overridden by extra_body params
+                size="1024x1024",
                 extra_body={
                     "size": size_param,
                     "style": style_category,
@@ -242,7 +242,8 @@ async def generate_image(
 
     except Exception as e:
         logger.error(
-            f"Error generating image for ID {generation_id}: {str(e)}", exc_info=True
+            f"Error generating image for ID {generation_id}: {str(e)}",
+            exc_info=True,
         )
         update_generation_status(generation_id, "error")
 

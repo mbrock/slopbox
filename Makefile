@@ -15,20 +15,20 @@ help:  ## Show this help message
 videosync:  ## Start video sync development server
 	@./dev videosync $(if $(PORT),--port $(PORT)) $(if $(HOST),--host $(HOST))
 
-slopbox:  ## Start slopbox development server  
+slopbox:  ## Start slopbox development server
 	@./dev slopbox $(if $(PORT),--port $(PORT)) $(if $(HOST),--host $(HOST))
 
 install:  ## Install dependencies
 	uv sync
 
 lint:  ## Run linting
-	uv run ruff check src/
+	uv run ruff check src/ tests/
 
 format:  ## Format code
-	uv run ruff format src/
+	uv run ruff format src/ tests/
 
 test:  ## Run tests
-	uv run pytest
+	uv run python -m pytest tests/ -v
 
 clean:  ## Clean up temporary files
 	find . -type d -name "__pycache__" -exec rm -rf {} +

@@ -65,7 +65,9 @@ def render_generation_options(
             text("Model")
         with tag.div("flex gap-4"):
             for model_name, model_id in MODELS.items():
-                is_checked = model_id == model if model else model_id == DEFAULT_MODEL
+                is_checked = (
+                    model_id == model if model else model_id == DEFAULT_MODEL
+                )
                 render_radio_option("model", model_id, model_name, is_checked)
 
     # Aspect ratio selection
@@ -74,7 +76,9 @@ def render_generation_options(
             text("Aspect Ratio")
         with tag.div("flex gap-2 justify-start"):
             for ratio in ASPECT_TO_RECRAFT.keys():
-                is_checked = ratio == aspect_ratio if aspect_ratio else ratio == "1:1"
+                is_checked = (
+                    ratio == aspect_ratio if aspect_ratio else ratio == "1:1"
+                )
                 # Calculate preview dimensions
                 w, h = map(float, ratio.split(":"))
                 preview_size = 48  # Base size in pixels
@@ -111,21 +115,28 @@ def render_generation_options(
                 if "/" not in style_value:
                     current_category = style_value
                     # Create optgroup for this category
-                    with tag.optgroup(label=current_category.replace("_", " ").title()):
+                    with tag.optgroup(
+                        label=current_category.replace("_", " ").title()
+                    ):
                         # Add the main category option
                         is_selected = (
                             style_value == style
                             if style
-                            else style_value == "realistic_image/natural_light"
+                            else style_value
+                            == "realistic_image/natural_light"
                         )
-                        with tag.option(value=style_value, selected=is_selected):
+                        with tag.option(
+                            value=style_value, selected=is_selected
+                        ):
                             text(style_value.replace("_", " ").title())
                 else:
                     # This is a subcategory, check if parent category matches current
                     category, substyle = style_value.split("/", 1)
                     if category == current_category:
                         is_selected = style_value == style
-                        with tag.option(value=style_value, selected=is_selected):
+                        with tag.option(
+                            value=style_value, selected=is_selected
+                        ):
                             text(substyle.replace("_", " ").title())
 
 

@@ -60,7 +60,7 @@ def create_tables():
             )
             """
         )
-        
+
         # Add style column to existing table if it doesn't exist
         cur = conn.execute(
             """
@@ -68,10 +68,11 @@ def create_tables():
             """
         )
         columns = [column[1] for column in cur.fetchall()]
-        if 'style' not in columns:
+        if "style" not in columns:
             conn.execute(
                 """
-                ALTER TABLE image_specs ADD COLUMN style TEXT DEFAULT 'realistic_image/natural_light'
+                ALTER TABLE image_specs ADD COLUMN style TEXT
+                DEFAULT 'realistic_image/natural_light'
                 """
             )
 
@@ -144,7 +145,8 @@ def migrate_v2_to_v3():
     with conn:
         # Check if migration is needed
         cur = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='images_v2'"
+            "SELECT name FROM sqlite_master WHERE type='table' "
+            "AND name='images_v2'"
         )
         if not cur.fetchone():
             return

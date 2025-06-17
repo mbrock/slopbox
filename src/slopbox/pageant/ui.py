@@ -1,4 +1,3 @@
-import os
 from typing import List, Tuple
 
 from tagflow import tag, text
@@ -22,7 +21,9 @@ def render_comparison(left_image: Image, right_image: Image):
                 text("(Only comparing images you've liked)")
 
         # Image comparison container
-        with tag.div("flex gap-8 justify-center items-center w-full max-w-7xl mx-auto"):
+        with tag.div(
+            "flex gap-8 justify-center items-center w-full max-w-7xl mx-auto"
+        ):
             # Left image container
             with tag.div("flex-1 flex justify-end"):
                 with tag.div(
@@ -78,7 +79,9 @@ def render_comparison(left_image: Image, right_image: Image):
 
 def render_rankings(rankings: List[Tuple[Image, float, int]]):
     """Render the current rankings table."""
-    with tag.div("mt-8 w-full max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-6"):
+    with tag.div(
+        "mt-8 w-full max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-6"
+    ):
         with tag.h2("text-xl font-bold text-neutral-800 mb-4"):
             text("Current Rankings")
             with tag.span("text-sm font-normal text-neutral-600 ml-2"):
@@ -126,7 +129,9 @@ def render_rankings(rankings: List[Tuple[Image, float, int]]):
 
 
 def render_page(
-    left_image: Image, right_image: Image, rankings: List[Tuple[Image, float, int]]
+    left_image: Image,
+    right_image: Image,
+    rankings: List[Tuple[Image, float, int]],
 ):
     """Render the complete pageant page with comparison and rankings."""
     with tag.div("flex flex-col mx-auto", id="pageant-container"):
