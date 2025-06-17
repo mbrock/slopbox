@@ -1,7 +1,7 @@
 [project]
 name = "slopbox"
-version = "0.1.0"
-description = "A web-based AI image generation platform with gallery and prompt management features"
+version = "0.5.0"
+description = "AI image generation platform and video-audio synchronization tool with real-time waveform visualization"
 readme = "README.md"
 authors = [{ name = "Mikael Brockman", email = "mikael@brockman.se" }]
 license = "MIT"
@@ -23,12 +23,13 @@ dependencies = [
     "aiofiles>=24.1.0",
     "aiohttp>=3.11.16",
     "anthropic>=0.46.0",
+    "click>=8.0.0",
     "fastapi[standard]>=0.115.8",
     "openai>=1.70.0",
     "pillow>=11.1.0",
     "replicate>=1.0.4",
     "tagflow>=0.7.0",
-    "uvicorn>=0.34.0",
+    "uvicorn[standard]>=0.34.0",
 ]
 
 [project.optional-dependencies]
@@ -46,7 +47,8 @@ Homepage = "https://github.com/mbrock/slopbox"
 Issues = "https://github.com/mbrock/slopbox/issues"
 
 [project.scripts]
-slopbox = "slopbox:main"
+slopbox = "slopbox.cli:slopbox_cli"
+videosync = "slopbox.cli:videosync_cli"
 
 [build-system]
 requires = ["hatchling"]

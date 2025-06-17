@@ -1,0 +1,52 @@
+#!/bin/sh
+# Development server launcher for slopbox
+
+set -e
+
+show_help() {
+    cat << EOF
+Slopbox Development Server
+
+Usage:
+  ./dev videosync [fastapi-options...]    # Video sync tool only
+  ./dev slopbox [fastapi-options...]      # Full slopbox application
+  ./dev --help                            # Show this help
+
+Examples:
+  ./dev videosync                         # Video sync on localhost:8000
+  ./dev slopbox                           # Full app on localhost:8000
+  ./dev videosync --port 3000             # Video sync on port 3000
+  ./dev slopbox --host 0.0.0.0 --port 8080 # Slopbox accessible from network
+
+All FastAPI dev options are supported (--host, --port, --reload, etc.)
+EOF
+}
+
+if [ $# -eq 0 ] || [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
+    show_help
+    exit 0
+fi
+
+app="$1"
+shift
+
+case "$app" in
+    videosync)
+        echo "🎬 Starting Video Sync Tool"
+        echo "   Browser-based video-audio synchronization with waveform visualization"
+        echo "   Upload video and audio files to sync them with real-time preview"
+        exec uv run fastapi dev videosync_app:app "$@"
+        ;;
+    slopbox)
+        echo "🎨 Starting Slopbox"
+        echo "   AI image generation platform with gallery and prompt management"
+        echo "   Includes video sync tool at /video-sync"
+        exec uv run fastapi dev src.slopbox.app:app "$@"
+        ;;
+    *)
+        echo "❌ Unknown app: $app"
+        echo "   Use 'videosync' or 'slopbox'"
+        echo "   Run './dev --help' for usage information"
+        exit 1
+        ;;
+esac
