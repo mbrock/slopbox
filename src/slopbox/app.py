@@ -16,6 +16,9 @@ from slopbox.base import (
 )
 from slopbox.claude import generate_modified_prompt
 from slopbox.fastapi import app
+
+# Import the new genimg module
+from slopbox.genimg import generate_image
 from slopbox.image import (
     render_image_gallery,
     render_image_or_status,
@@ -36,9 +39,6 @@ from slopbox.model import (
 )
 from slopbox.pageant import pageant, pageant_choose
 from slopbox.prompt.form import render_prompt_form_content, render_prompt_part_input
-
-# Import the new genimg module
-from slopbox.genimg import generate_image
 from slopbox.ui import render_base_layout
 
 app.add_middleware(DocumentMiddleware)
@@ -236,6 +236,49 @@ async def regenerate(spec_id: int, style: str = Form("realistic_image/natural_li
     assert image is not None
     # Just render the image status without the prompt info
     render_image_or_status(image)
+
+
+@app.post("/regenerate-8x/{spec_id}")
+async def regenerate_8x(
+    spec_id: int, style: str = Form("realistic_image/natural_light")
+):
+    """Create 8 new generations using an existing image spec."""
+    # Get the spec details from the database
+    with conn:
+        cur = conn.execute(
+            """
+            SELECT prompt, model, aspect_ratio, style
+            FROM image_specs
+            WHERE id = ?
+            """,
+            (spec_id,),
+        )
+        row = cur.fetchone()
+        if not row:
+            return JSONResponse({"error": "Spec not found"}, status_code=404)
+
+        prompt, model, aspect_ratio, style = row
+
+    # Create 8 pending records and start 8 background tasks
+    images_to_render = []
+    for _ in range(8):
+        generation_id = str(uuid.uuid4())
+
+        # Create pending record
+        create_pending_generation(generation_id, prompt, model, aspect_ratio, style)
+
+        # Start background task
+        asyncio.create_task(
+            generate_image(generation_id, prompt, aspect_ratio, model, style)
+        )
+
+        image = get_generation_by_id(generation_id)
+        assert image is not None
+        images_to_render.append(image)
+
+    # Render all 8 images
+    for image in images_to_render:
+        render_image_or_status(image)
 
 
 @app.post("/copy-spec/{spec_id}")

@@ -62,7 +62,11 @@ def render_spec_header(spec: ImageSpec):
             with tag.span():
                 text(spec.aspect_ratio)
             with tag.span():
-                style_name = spec.style.split("/")[-1].replace("_", " ").title() if "/" in spec.style else spec.style.replace("_", " ").title()
+                style_name = (
+                    spec.style.split("/")[-1].replace("_", " ").title()
+                    if "/" in spec.style
+                    else spec.style.replace("_", " ").title()
+                )
                 text(f"{style_name}")
             with tag.span("text-neutral-800 font-mono"):
                 text(f"#{spec.id}")
@@ -107,7 +111,11 @@ def render_prompt_pills(image: Image):
         with tag.span():
             text(f"Aspect: {image.spec.aspect_ratio}")
         with tag.span():
-            style_name = image.spec.style.split("/")[-1].replace("_", " ").title() if "/" in image.spec.style else image.spec.style.replace("_", " ").title()
+            style_name = (
+                image.spec.style.split("/")[-1].replace("_", " ").title()
+                if "/" in image.spec.style
+                else image.spec.style.replace("_", " ").title()
+            )
             text(f"Style: {style_name}")
 
     # Action buttons
@@ -147,6 +155,7 @@ def render_single_image(image: Image):
 def render_spec_action_buttons(spec):
     render_copy_settings_button(spec)
     render_generate_new_button(spec)
+    render_generate_8x_button(spec)
     render_slideshow_button(spec)
 
 
@@ -158,6 +167,17 @@ def render_generate_new_button(spec):
         hx_swap="afterbegin settle:0.5s",
     ):
         text("Generate New")
+
+
+def render_generate_8x_button(spec):
+    with tag.button(
+        Styles.spec_action_button,
+        "bg-orange-100 hover:bg-orange-200",  # Different color to distinguish it
+        hx_post=app.url_path_for("regenerate_8x", spec_id=spec.id),
+        hx_target=f"#spec-images-{spec.id}",
+        hx_swap="afterbegin settle:0.5s",
+    ):
+        text("8x")
 
 
 def render_copy_settings_button(spec):
