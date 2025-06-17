@@ -1,6 +1,6 @@
 [project]
 name = "slopbox"
-version = "0.5.0"
+version = "0.5.1"
 description = "AI image generation platform and video-audio synchronization tool with real-time waveform visualization"
 readme = "README.md"
 authors = [{ name = "Mikael Brockman", email = "mikael@brockman.se" }]

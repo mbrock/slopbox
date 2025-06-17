@@ -17,6 +17,22 @@ Slopbox combines multiple AI image generation models into a web interface with v
 
 ## Quick Start
 
+### Easiest Way (No Installation)
+
+Run directly with uvx:
+
+```bash
+# Full slopbox application (recommended)
+uvx slopbox
+
+# Video sync tool only
+uvx videosync --from slopbox
+
+# With custom options
+uvx slopbox --port 8080 --host 0.0.0.0
+uvx videosync --from slopbox --port 3000
+```
+
 ### Installation
 
 Install from PyPI with any Python package manager:
