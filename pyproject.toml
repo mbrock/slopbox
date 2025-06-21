@@ -61,6 +61,7 @@ build-backend = "hatchling.build"
 [tool.black]
 line-length = 78
 target-version = ["py313"]
+unstable = true
 
 [tool.isort]
 profile = "black"
@@ -86,7 +87,10 @@ pythonVersion = "3.13"
 dev-dependencies = ["httpx>=0.28.1", "pytest>=8.3.4", "ruff>=0.9.7"]
 
 [dependency-groups]
-dev = ["ruff>=0.9.7"]
+dev = [
+    "black>=25.1.0",
+    "ruff>=0.9.7",
+]
 
 [tool.pytest.ini_options]
 minversion = "6.0"

@@ -131,7 +131,8 @@ def render_radio_option(
             "before:rounded-full before:bg-white",
             "checked:border-neutral-600 checked:bg-neutral-600",
             "focus-visible:outline focus-visible:outline-2",
-            "focus-visible:outline-offset-2 focus-visible:outline-neutral-600",
+            "focus-visible:outline-offset-2"
+            " focus-visible:outline-neutral-600",
             "[&:not(:checked)]:before:hidden",
             id=f"{name}-{value}",
             type="radio",

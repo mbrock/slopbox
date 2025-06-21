@@ -9,7 +9,8 @@ from slopbox.model import Image
 def render_comparison(left_image: Image, right_image: Image):
     """Render the side-by-side image comparison view for pageant."""
     with tag.div(
-        "flex flex-col items-center justify-center min-h-screen bg-neutral-100 p-4",
+        "flex flex-col items-center justify-center min-h-screen"
+        " bg-neutral-100 p-4",
     ):
         # Header
         with tag.div("mb-8 text-center"):
@@ -27,7 +28,8 @@ def render_comparison(left_image: Image, right_image: Image):
             # Left image container
             with tag.div("flex-1 flex justify-end"):
                 with tag.div(
-                    "group cursor-pointer transition-transform hover:scale-105 relative",
+                    "group cursor-pointer transition-transform"
+                    " hover:scale-105 relative",
                     hx_post=f"/pageant/choose/{left_image.uuid}/{right_image.uuid}",
                     hx_target="#pageant-container",
                     hx_swap="innerHTML",
@@ -53,7 +55,8 @@ def render_comparison(left_image: Image, right_image: Image):
             # Right image container
             with tag.div("flex-1 flex justify-start"):
                 with tag.div(
-                    "group cursor-pointer transition-transform hover:scale-105 relative",
+                    "group cursor-pointer transition-transform"
+                    " hover:scale-105 relative",
                     hx_post=f"/pageant/choose/{right_image.uuid}/{left_image.uuid}",
                     hx_target="#pageant-container",
                     hx_swap="innerHTML",
@@ -92,19 +95,23 @@ def render_rankings(rankings: List[Tuple[Image, float, int]]):
                 with tag.thead("bg-neutral-100"):
                     with tag.tr():
                         with tag.th(
-                            "px-4 py-2 text-left text-sm font-semibold text-neutral-600"
+                            "px-4 py-2 text-left text-sm font-semibold"
+                            " text-neutral-600"
                         ):
                             text("Rank")
                         with tag.th(
-                            "px-4 py-2 text-left text-sm font-semibold text-neutral-600"
+                            "px-4 py-2 text-left text-sm font-semibold"
+                            " text-neutral-600"
                         ):
                             text("Image")
                         with tag.th(
-                            "px-4 py-2 text-left text-sm font-semibold text-neutral-600"
+                            "px-4 py-2 text-left text-sm font-semibold"
+                            " text-neutral-600"
                         ):
                             text("Rating")
                         with tag.th(
-                            "px-4 py-2 text-left text-sm font-semibold text-neutral-600"
+                            "px-4 py-2 text-left text-sm font-semibold"
+                            " text-neutral-600"
                         ):
                             text("Comparisons")
 

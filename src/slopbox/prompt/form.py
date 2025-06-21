@@ -201,7 +201,9 @@ def render_prompt_modification_form():
         Styles.input_primary,
         type="text",
         name="modification",
-        placeholder="How to modify the prompt (e.g., 'make it more detailed')",
+        placeholder=(
+            "How to modify the prompt (e.g., 'make it more detailed')"
+        ),
     ):
         pass
 

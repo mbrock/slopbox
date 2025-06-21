@@ -24,7 +24,8 @@ install:  ## Install dependencies
 lint:  ## Run linting
 	uv run ruff check src/ tests/
 
-format:  ## Format code
+format:  ## Format code (Black for line splitting, then Ruff for canonical formatting)
+	uv run black src/ tests/
 	uv run ruff format src/ tests/
 
 test:  ## Run tests

@@ -78,9 +78,11 @@ def render_complete_image(image: Image):
             "object-contain flex-0",
             "bg-white p-2",
             "shadow-xl shadow-neutral-500",
-            "border-amber-200 border-4"
-            if image.liked
-            else "border border-neutral-500",
+            (
+                "border-amber-200 border-4"
+                if image.liked
+                else "border border-neutral-500"
+            ),
             "z-10",
             src=get_image_url(image),
             alt=image.spec.prompt if image.spec else "",
@@ -109,9 +111,11 @@ def render_like_affordance(image):
         "p-2 rounded-full",
         "opacity-0 group-hover:opacity-100 transition-opacity",
         "z-20 pointer-events-none",
-        "bg-amber-100 text-amber-600"
-        if image.liked
-        else "bg-white/80 text-neutral-600",
+        (
+            "bg-amber-100 text-amber-600"
+            if image.liked
+            else "bg-white/80 text-neutral-600"
+        ),
         id=f"like-indicator-{image.uuid}",
     ):
         with tag.span("text-xl"):

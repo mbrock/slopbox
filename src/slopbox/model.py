@@ -211,14 +211,12 @@ def get_prompt_by_uuid(uuid: str) -> Optional[str]:
 def mark_stale_generations_as_error() -> None:
     """Update status of stale pending generations to error."""
     with conn:
-        conn.execute(
-            """
+        conn.execute("""
             UPDATE images_v3
             SET status = 'error'
             WHERE status = 'pending'
             AND datetime(created, '+1 hour') < datetime('now')
-            """
-        )
+            """)
 
 
 def get_spec_generations(spec_id: int) -> List[Image]:
@@ -290,7 +288,8 @@ def get_paginated_specs_with_images(
         liked_only: Whether to only include specs with liked images
     """
     logger.info(
-        f"Getting paginated specs with page_size={page_size}, offset={offset}, sort_by={sort_by}, liked_only={liked_only}"
+        f"Getting paginated specs with page_size={page_size},"
+        f" offset={offset}, sort_by={sort_by}, liked_only={liked_only}"
     )
 
     with conn:
@@ -433,8 +432,7 @@ def get_random_weighted_image() -> Tuple[Optional[Image], Optional[int]]:
     """
     with conn:
         # First randomly select a spec, weighted by completed image count
-        cur = conn.execute(
-            """
+        cur = conn.execute("""
             WITH spec_counts AS (
                 SELECT spec_id, COUNT(*) as count
                 FROM images_v3
@@ -445,8 +443,7 @@ def get_random_weighted_image() -> Tuple[Optional[Image], Optional[int]]:
             FROM spec_counts
             ORDER BY RANDOM() * SQRT(count)
             LIMIT 1
-            """
-        )
+            """)
         row = cur.fetchone()
         if not row:
             return (None, None)
@@ -561,7 +558,8 @@ def get_liked_status(image_uuids: List[str]) -> dict[str, bool]:
     with conn:
         placeholders = ",".join("?" * len(image_uuids))
         cur = conn.execute(
-            f"SELECT image_uuid FROM likes WHERE image_uuid IN ({placeholders})",
+            "SELECT image_uuid FROM likes WHERE image_uuid IN"
+            f" ({placeholders})",
             image_uuids,
         )
         liked_uuids = {row[0] for row in cur.fetchall()}
@@ -576,21 +574,18 @@ def get_random_liked_image() -> Tuple[Optional[Image], Optional[int]]:
     """
     with conn:
         # Get the count of liked images
-        cur = conn.execute(
-            """
+        cur = conn.execute("""
             SELECT COUNT(*)
             FROM images_v3 i
             JOIN likes l ON i.uuid = l.image_uuid
             WHERE i.status = 'complete'
-            """
-        )
+            """)
         count = cur.fetchone()[0]
         if count == 0:
             return (None, None)
 
         # Get a random liked image
-        cur = conn.execute(
-            """
+        cur = conn.execute("""
             SELECT
                 i.id, i.uuid, i.spec_id, i.filepath, i.status, i.created,
                 s.id, s.prompt, s.model, s.aspect_ratio, s.style, s.created
@@ -600,8 +595,7 @@ def get_random_liked_image() -> Tuple[Optional[Image], Optional[int]]:
             WHERE i.status = 'complete'
             ORDER BY RANDOM()
             LIMIT 1
-            """
-        )
+            """)
         row = cur.fetchone()
         if row:
             image = Image.from_row(row[:6], ImageSpec.from_row(row[6:]))

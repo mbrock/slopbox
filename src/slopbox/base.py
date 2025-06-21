@@ -47,8 +47,7 @@ conn = sqlite3.connect(DB_PATH, check_same_thread=False)
 def create_tables():
     with conn:
         # Create image_specs table
-        conn.execute(
-            """
+        conn.execute("""
             CREATE TABLE IF NOT EXISTS image_specs (
                 id INTEGER PRIMARY KEY,
                 prompt TEXT NOT NULL,
@@ -58,27 +57,21 @@ def create_tables():
                 created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 UNIQUE(prompt, model, aspect_ratio, style)
             )
-            """
-        )
+            """)
 
         # Add style column to existing table if it doesn't exist
-        cur = conn.execute(
-            """
+        cur = conn.execute("""
             PRAGMA table_info(image_specs)
-            """
-        )
+            """)
         columns = [column[1] for column in cur.fetchall()]
         if "style" not in columns:
-            conn.execute(
-                """
+            conn.execute("""
                 ALTER TABLE image_specs ADD COLUMN style TEXT
                 DEFAULT 'realistic_image/natural_light'
-                """
-            )
+                """)
 
         # Create new images table with spec_id reference
-        conn.execute(
-            """
+        conn.execute("""
             CREATE TABLE IF NOT EXISTS images_v3 (
                 id INTEGER PRIMARY KEY,
                 uuid TEXT UNIQUE,
@@ -88,23 +81,19 @@ def create_tables():
                 created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (spec_id) REFERENCES image_specs (id)
             )
-            """
-        )
+            """)
 
         # Create likes table
-        conn.execute(
-            """
+        conn.execute("""
             CREATE TABLE IF NOT EXISTS likes (
                 image_uuid TEXT PRIMARY KEY,
                 created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (image_uuid) REFERENCES images_v3 (uuid)
             )
-            """
-        )
+            """)
 
         # Create emails table
-        conn.execute(
-            """
+        conn.execute("""
             CREATE TABLE IF NOT EXISTS emails (
                 id INTEGER PRIMARY KEY,
                 message_id TEXT UNIQUE NOT NULL,
@@ -120,12 +109,10 @@ def create_tables():
                 created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
-            """
-        )
+            """)
 
         # Create email attachments table
-        conn.execute(
-            """
+        conn.execute("""
             CREATE TABLE IF NOT EXISTS email_attachments (
                 id INTEGER PRIMARY KEY,
                 email_id INTEGER NOT NULL,
@@ -136,8 +123,7 @@ def create_tables():
                 created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (email_id) REFERENCES emails (id)
             )
-            """
-        )
+            """)
 
 
 def migrate_v2_to_v3():
@@ -155,8 +141,7 @@ def migrate_v2_to_v3():
         create_tables()
 
         # Insert specs with their earliest creation time
-        conn.execute(
-            """
+        conn.execute("""
             INSERT INTO image_specs (prompt, model, aspect_ratio, created)
             SELECT
                 prompt,
@@ -165,12 +150,10 @@ def migrate_v2_to_v3():
                 MIN(created) as first_created
             FROM images_v2
             GROUP BY prompt, model, aspect_ratio
-            """
-        )
+            """)
 
         # Then insert images with the correct spec_ids
-        conn.execute(
-            """
+        conn.execute("""
             INSERT INTO images_v3 (uuid, spec_id, filepath, status, created)
             SELECT
                 v2.uuid,
@@ -183,8 +166,7 @@ def migrate_v2_to_v3():
                 ON s.prompt = v2.prompt
                 AND s.model = v2.model
                 AND s.aspect_ratio = v2.aspect_ratio
-            """
-        )
+            """)
 
         # Rename old table to backup
         conn.execute("ALTER TABLE images_v2 RENAME TO images_v2_backup")

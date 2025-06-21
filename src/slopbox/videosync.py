@@ -26,10 +26,11 @@ router = APIRouter(default_response_class=TagResponse)
 export_progress = {}
 
 
-async def track_ffmpeg_progress(process, job_id, total_duration_seconds):
+async def track_ffmpeg_progress(process, job_id, duration):
     """Track FFmpeg progress in real-time by parsing stderr output."""
     print(
-        f"📊 Starting progress tracking for job {job_id}, duration: {total_duration_seconds}s"
+        f"📊 Starting progress tracking for job {job_id}, duration:"
+        f" {duration}s"
     )
 
     stderr_buffer = b""
@@ -43,7 +44,7 @@ async def track_ffmpeg_progress(process, job_id, total_duration_seconds):
             line_str = line.decode("utf-8", errors="ignore").strip()
 
             # Parse time progress from FFmpeg output
-            # FFmpeg outputs lines like: "time=00:01:23.45 bitrate=1234.5kbits/s speed=1.2x"
+            # eg "time=00:01:23.45 bitrate=1234.5kbits/s speed=1.2x"
             time_match = re.search(
                 r"time=(\d{2}):(\d{2}):(\d{2})\.(\d+)", line_str
             )
@@ -53,7 +54,6 @@ async def track_ffmpeg_progress(process, job_id, total_duration_seconds):
                 seconds = int(time_match.group(3))
                 fraction_str = time_match.group(4)
 
-                # Handle different decimal precision (centiseconds vs milliseconds)
                 if len(fraction_str) == 2:
                     fraction = int(fraction_str) / 100  # centiseconds
                 elif len(fraction_str) == 3:
@@ -65,12 +65,11 @@ async def track_ffmpeg_progress(process, job_id, total_duration_seconds):
                     hours * 3600 + minutes * 60 + seconds + fraction
                 )
 
-                if total_duration_seconds > 0:
-                    # Calculate progress percentage (50% to 95% of total progress)
-                    # Reserve 50-95% for FFmpeg processing, 95-100% for file handling
+                if duration > 0:
+                    # Calculate progress percentage (50% to 95% of total)
                     ffmpeg_progress = min(
                         95,
-                        50 + (current_seconds / total_duration_seconds) * 45,
+                        50 + (current_seconds / duration) * 45,
                     )
 
                     # Extract additional info if available
@@ -85,15 +84,19 @@ async def track_ffmpeg_progress(process, job_id, total_duration_seconds):
                         else ""
                     )
                     bitrate_text = (
-                        f" ({bitrate_match.group(1)} kbps)"
+                        f"({bitrate_match.group(1)} kbps)"
                         if bitrate_match
                         else ""
                     )
 
-                    progress_message = f"Processing video: {current_seconds:.1f}s / {total_duration_seconds:.1f}s{speed_text}{bitrate_text}"
+                    progress_message = (
+                        f"Processing video: {current_seconds:.1f}s /"
+                        f" {duration:.1f}s{speed_text} {bitrate_text}"
+                    )
 
                     print(
-                        f"📈 Progress: {ffmpeg_progress:.1f}% - {progress_message}"
+                        f"📈 Progress: {ffmpeg_progress:.1f}% -"
+                        f" {progress_message}"
                     )
 
                     export_progress[job_id].update(
@@ -101,7 +104,7 @@ async def track_ffmpeg_progress(process, job_id, total_duration_seconds):
                             "progress": int(ffmpeg_progress),
                             "message": progress_message,
                             "current_time": current_seconds,
-                            "total_time": total_duration_seconds,
+                            "total_time": duration,
                         }
                     )
 
@@ -139,20 +142,15 @@ async def export_video_server(
     # Generate unique job ID
     job_id = str(uuid.uuid4())
 
-    try:
-        # Read file contents immediately before they get closed
-        await video_file.seek(0)
-        video_content = await video_file.read()
+    await video_file.seek(0)
+    video_content = await video_file.read()
 
-        await audio_file.seek(0)
-        audio_content = await audio_file.read()
+    assert video_file.filename is not None
 
-    except Exception as e:
-        print(f"❌ Error reading uploaded files: {e}")
-        return JSONResponse(
-            {"error": f"Failed to read uploaded files: {str(e)}"},
-            status_code=400,
-        )
+    await audio_file.seek(0)
+    audio_content = await audio_file.read()
+
+    assert audio_file.filename is not None
 
     # Initialize progress
     export_progress[job_id] = {
@@ -301,7 +299,6 @@ async def process_video_export_with_content(
             temp_dir, f"input_audio{os.path.splitext(audio_filename)[1]}"
         )
         output_path = os.path.join(temp_dir, "output.mp4")
-        progress_path = os.path.join(temp_dir, "progress.txt")
 
         # Write uploaded files to disk
         try:
@@ -450,6 +447,7 @@ async def get_video_duration(video_path: str) -> float:
             cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE
         ) as process:
             with anyio.move_on_after(30.0) as cancel_scope:
+                assert process.stdout is not None
                 # Read all stdout data
                 stdout_chunks = []
                 async for chunk in process.stdout:
@@ -487,6 +485,7 @@ async def has_video_audio_stream(video_path: str) -> bool:
         ) as process:
             with anyio.move_on_after(30.0) as cancel_scope:
                 # Read all stdout data
+                assert process.stdout is not None
                 stdout_chunks = []
                 async for chunk in process.stdout:
                     stdout_chunks.append(chunk)
@@ -537,7 +536,8 @@ async def build_ffmpeg_command(
             # Positive offset: delay audio, trim video start
             filters.append(f"[0:v]trim=start={offset}[video_trimmed]")
             filters.append(
-                f"[1:a]adelay={int(offset * 1000)}|{int(offset * 1000)}[audio_delayed]"
+                f"[1:a]adelay={int(offset * 1000)}"
+                f"|{int(offset * 1000)}[audio_delayed]"
             )
             video_input = "video_trimmed"
             audio_input = "audio_delayed"
@@ -552,7 +552,8 @@ async def build_ffmpeg_command(
             if offset > 0:
                 # Positive offset: delay audio
                 filters.append(
-                    f"[1:a]adelay={int(offset * 1000)}|{int(offset * 1000)}[audio_delayed]"
+                    f"[1:a]adelay={int(offset * 1000)}"
+                    f"|{int(offset * 1000)}[audio_delayed]"
                 )
                 audio_input = "audio_delayed"
             else:
@@ -692,7 +693,8 @@ def render_file_upload_section():
                 ):
                     pass
                 with tag.label(
-                    "px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded cursor-pointer transition-colors",
+                    "px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white"
+                    " text-sm rounded cursor-pointer transition-colors",
                     **{"for": "video-upload"},
                 ):
                     text("📹 Video")
@@ -713,7 +715,8 @@ def render_file_upload_section():
                 ):
                     pass
                 with tag.label(
-                    "px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-sm rounded cursor-pointer transition-colors",
+                    "px-3 py-1 bg-green-600 hover:bg-green-700 text-white"
+                    " text-sm rounded cursor-pointer transition-colors",
                     **{"for": "audio-upload"},
                 ):
                     text("🎵 Audio")
@@ -760,15 +763,19 @@ def render_control_section():
             # Compact offset control - just the visual indicator, no input
             with tag.div("relative"):
                 with tag.div(
-                    "w-full h-3 bg-neutral-700 rounded-full relative cursor-pointer",
+                    "w-full h-3 bg-neutral-700 rounded-full relative"
+                    " cursor-pointer",
                     id="offset-slider",
                 ):
                     with tag.div(
-                        "absolute top-0 left-1/2 transform -translate-x-1/2 w-px h-3 bg-neutral-500"
+                        "absolute top-0 left-1/2 transform -translate-x-1/2"
+                        " w-px h-3 bg-neutral-500"
                     ):
                         pass
                     with tag.div(
-                        "absolute top-0 w-4 h-3 bg-blue-500 rounded-full transform -translate-x-1/2 transition-all duration-150 shadow-lg",
+                        "absolute top-0 w-4 h-3 bg-blue-500 rounded-full"
+                        " transform -translate-x-1/2 transition-all"
+                        " duration-150 shadow-lg",
                         id="offset-indicator",
                         style="left: 50%",
                     ):
@@ -791,13 +798,17 @@ def render_control_section():
                     with tag.span("text-xs text-blue-400 font-medium"):
                         text("Clean")
                 with tag.input(
-                    "w-full h-2 bg-neutral-700 rounded-lg appearance-none cursor-pointer",
+                    "w-full h-2 bg-neutral-700 rounded-lg appearance-none"
+                    " cursor-pointer",
                     type="range",
                     id="crossfader",
                     min="0",
                     max="100",
                     value="50",
-                    style="background: linear-gradient(to right, #ef4444 0%, #ef4444 50%, #3b82f6 50%, #3b82f6 100%)",
+                    style=(
+                        "background: linear-gradient(to right, #ef4444 0%,"
+                        " #ef4444 50%, #3b82f6 50%, #3b82f6 100%)"
+                    ),
                 ):
                     pass
 
@@ -805,7 +816,8 @@ def render_control_section():
             with tag.div("flex items-center justify-between text-xs"):
                 with tag.label("flex items-center gap-1 cursor-pointer"):
                     with tag.input(
-                        "w-3 h-3 text-blue-600 bg-neutral-700 border-neutral-600 rounded",
+                        "w-3 h-3 text-blue-600 bg-neutral-700"
+                        " border-neutral-600 rounded",
                         type="checkbox",
                         id="basic-mode-toggle",
                     ):
@@ -815,7 +827,8 @@ def render_control_section():
 
                 with tag.label("flex items-center gap-1 cursor-pointer"):
                     with tag.input(
-                        "w-3 h-3 text-blue-600 bg-neutral-700 border-neutral-600 rounded",
+                        "w-3 h-3 text-blue-600 bg-neutral-700"
+                        " border-neutral-600 rounded",
                         type="checkbox",
                         id="clip-video-checkbox",
                     ):
@@ -833,7 +846,8 @@ def render_control_section():
                     ):
                         text("1.0x")
                 with tag.input(
-                    "w-full h-1 bg-neutral-700 rounded-lg appearance-none cursor-pointer",
+                    "w-full h-1 bg-neutral-700 rounded-lg appearance-none"
+                    " cursor-pointer",
                     type="range",
                     id="enhancement-gain",
                     min="0.1",
@@ -849,7 +863,8 @@ def render_control_section():
                     with tag.label("text-xs text-neutral-300"):
                         text("Blend Mode")
                 with tag.select(
-                    "w-full text-xs bg-neutral-700 border border-neutral-600 rounded text-white",
+                    "w-full text-xs bg-neutral-700 border border-neutral-600"
+                    " rounded text-white",
                     id="blend-mode-select",
                 ):
                     with tag.option(value="normal", selected=True):
@@ -873,19 +888,23 @@ def render_control_section():
         with tag.div("space-y-2"):
             with tag.div("flex gap-1"):
                 with tag.button(
-                    "flex-1 px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded font-medium transition-colors",
+                    "flex-1 px-2 py-1 bg-blue-600 hover:bg-blue-700"
+                    " text-white text-xs rounded font-medium"
+                    " transition-colors",
                     id="play-pause-btn",
                     onclick="togglePlayback()",
                 ):
                     text("▶ Play")
                 with tag.button(
-                    "px-2 py-1 bg-neutral-700 hover:bg-neutral-600 text-white text-xs rounded transition-colors",
+                    "px-2 py-1 bg-neutral-700 hover:bg-neutral-600 text-white"
+                    " text-xs rounded transition-colors",
                     onclick="seekToStart()",
                 ):
                     text("⏮")
 
             with tag.button(
-                "w-full px-2 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded transition-colors",
+                "w-full px-2 py-1 bg-green-600 hover:bg-green-700 text-white"
+                " text-xs rounded transition-colors",
                 id="export-server-btn",
                 onclick="exportVideoServer()",
             ):
@@ -911,7 +930,6 @@ def render_waveform_section():
         with tag.div("text-xl font-semibold text-white mb-4"):
             text("🎵 Audio Waveforms")
 
-        # Waveforms grid - 2 columns for individual, full width for superposition
         with tag.div("grid grid-cols-2 gap-6 mb-6"):
             # Video audio waveform
             with tag.div("hidden"):
@@ -922,7 +940,8 @@ def render_waveform_section():
                         text("Original")
                 with tag.div("relative"):
                     with tag.canvas(
-                        "w-full h-40 border border-neutral-600 rounded bg-neutral-800",
+                        "w-full h-40 border border-neutral-600 rounded"
+                        " bg-neutral-800",
                         id="original-waveform",
                         width="1200",
                         height="160",
@@ -938,7 +957,8 @@ def render_waveform_section():
                         text("Replacement")
                 with tag.div("relative"):
                     with tag.canvas(
-                        "w-full h-40 border border-neutral-600 rounded bg-neutral-800",
+                        "w-full h-40 border border-neutral-600 rounded"
+                        " bg-neutral-800",
                         id="clean-waveform",
                         width="1200",
                         height="160",
@@ -954,7 +974,8 @@ def render_waveform_section():
                     text("Vertical Stack • Original | Clean | Blend Mode")
             with tag.div("relative"):
                 with tag.canvas(
-                    "w-full h-96 border border-neutral-600 rounded bg-neutral-900",
+                    "w-full h-96 border border-neutral-600 rounded"
+                    " bg-neutral-900",
                     id="superposition-waveform",
                     width="2400",
                     height="192",
@@ -963,9 +984,13 @@ def render_waveform_section():
 
                 # Playhead indicator spans all waveforms
                 with tag.div(
-                    "absolute w-0.5 bg-yellow-400 opacity-90 pointer-events-none z-10",
+                    "absolute w-0.5 bg-yellow-400 opacity-90"
+                    " pointer-events-none z-10",
                     id="playhead",
-                    style="top: -348px; height: 628px; left: 0px; transition: left 0.1s ease-out;",
+                    style=(
+                        "top: -348px; height: 628px; left: 0px; transition:"
+                        " left 0.1s ease-out;"
+                    ),
                 ):
                     pass
 
@@ -990,7 +1015,8 @@ def render_inspector_panel():
                             text("Original")
                     with tag.div("relative"):
                         with tag.canvas(
-                            "w-full h-32 border border-neutral-600 rounded bg-neutral-800",
+                            "w-full h-32 border border-neutral-600 rounded"
+                            " bg-neutral-800",
                             id="original-waveform",
                             width="800",
                             height="128",
@@ -1006,7 +1032,8 @@ def render_inspector_panel():
                             text("Replacement")
                     with tag.div("relative"):
                         with tag.canvas(
-                            "w-full h-32 border border-neutral-600 rounded bg-neutral-800",
+                            "w-full h-32 border border-neutral-600 rounded"
+                            " bg-neutral-800",
                             id="clean-waveform",
                             width="800",
                             height="128",
@@ -1015,9 +1042,13 @@ def render_inspector_panel():
 
                         # Playhead indicator spans both waveforms
                         with tag.div(
-                            "absolute w-0.5 bg-yellow-400 opacity-90 pointer-events-none z-10",
+                            "absolute w-0.5 bg-yellow-400 opacity-90"
+                            " pointer-events-none z-10",
                             id="playhead",
-                            style="top: -168px; height: 328px; left: 0px; transition: left 0.1s ease-out;",
+                            style=(
+                                "top: -168px; height: 328px; left: 0px;"
+                                " transition: left 0.1s ease-out;"
+                            ),
                         ):
                             pass
 
@@ -1030,7 +1061,8 @@ def render_inspector_panel():
                             text("Superposition")
                     with tag.div("relative"):
                         with tag.canvas(
-                            "w-full h-32 border border-neutral-600 rounded bg-neutral-900",
+                            "w-full h-32 border border-neutral-600 rounded"
+                            " bg-neutral-900",
                             id="superposition-waveform",
                             width="800",
                             height="128",
@@ -1047,20 +1079,26 @@ def render_inspector_panel():
                         with tag.span("text-xs text-blue-400"):
                             text("Clean")
                     with tag.input(
-                        "w-full h-3 bg-neutral-700 rounded-lg appearance-none cursor-pointer",
+                        "w-full h-3 bg-neutral-700 rounded-lg appearance-none"
+                        " cursor-pointer",
                         type="range",
                         id="crossfader",
                         min="0",
                         max="100",
                         value="50",
-                        style="background: linear-gradient(to right, #ef4444 0%, #ef4444 50%, #3b82f6 50%, #3b82f6 100%)",
+                        style=(
+                            "background: linear-gradient(to right, #ef4444"
+                            " 0%, #ef4444 50%, #3b82f6 50%, #3b82f6 100%)"
+                        ),
                     ):
                         pass
 
                 # Clip video option
                 with tag.div("mt-3 flex items-center gap-2"):
                     with tag.input(
-                        "w-4 h-4 text-blue-600 bg-neutral-700 border-neutral-600 rounded focus:ring-blue-500 focus:ring-2",
+                        "w-4 h-4 text-blue-600 bg-neutral-700"
+                        " border-neutral-600 rounded focus:ring-blue-500"
+                        " focus:ring-2",
                         type="checkbox",
                         id="clip-video-checkbox",
                     ):
@@ -1072,7 +1110,11 @@ def render_inspector_panel():
                         text("Clip video instead of adding silence")
                     with tag.div(
                         "ml-auto text-xs text-neutral-500 cursor-help",
-                        title="When checked: trims video length to match audio timing. When unchecked: adds silence to maintain full video duration.",
+                        title=(
+                            "When checked: trims video length to match audio"
+                            " timing. When unchecked: adds silence to"
+                            " maintain full video duration."
+                        ),
                     ):
                         text("?")
 
@@ -1096,12 +1138,15 @@ def render_inspector_panel():
                     ):
                         # Center mark
                         with tag.div(
-                            "absolute top-0 left-1/2 transform -translate-x-1/2 w-0.5 h-2 bg-neutral-500"
+                            "absolute top-0 left-1/2 transform"
+                            " -translate-x-1/2 w-0.5 h-2 bg-neutral-500"
                         ):
                             pass
                         # Offset indicator
                         with tag.div(
-                            "absolute top-0 w-3 h-2 bg-blue-500 rounded-full transform -translate-x-1/2 transition-all duration-200",
+                            "absolute top-0 w-3 h-2 bg-blue-500 rounded-full"
+                            " transform -translate-x-1/2 transition-all"
+                            " duration-200",
                             id="offset-indicator",
                             style="left: 50%",
                         ):
@@ -1120,7 +1165,8 @@ def render_inspector_panel():
                 # Offset input and fine tune in one row
                 with tag.div("flex items-center gap-2 mb-2"):
                     with tag.input(
-                        "w-20 px-2 py-1 bg-neutral-700 border border-neutral-600 rounded text-white text-sm",
+                        "w-20 px-2 py-1 bg-neutral-700 border"
+                        " border-neutral-600 rounded text-white text-sm",
                         type="number",
                         id="audio-offset",
                         step="0.01",
@@ -1132,7 +1178,8 @@ def render_inspector_panel():
 
                     # Fine tune buttons
                     with tag.button(
-                        "px-2 py-1 bg-neutral-700 hover:bg-neutral-600 text-white text-xs rounded transition-colors",
+                        "px-2 py-1 bg-neutral-700 hover:bg-neutral-600"
+                        " text-white text-xs rounded transition-colors",
                         onclick="adjustOffset(-0.1)",
                     ):
                         text("-0.1")
@@ -1170,7 +1217,10 @@ def render_inspector_panel():
                     with tag.button(
                         [
                             "flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700",
-                            "text-white text-sm rounded font-medium transition-colors",
+                            (
+                                "text-white text-sm rounded font-medium"
+                                " transition-colors"
+                            ),
                         ],
                         id="play-pause-btn",
                         onclick="togglePlayback()",
@@ -1195,7 +1245,10 @@ def render_inspector_panel():
                         with tag.input(
                             [
                                 "w-4 h-4 text-blue-600 bg-neutral-700",
-                                "border-neutral-600 rounded focus:ring-blue-500 focus:ring-2",
+                                (
+                                    "border-neutral-600 rounded"
+                                    " focus:ring-blue-500 focus:ring-2"
+                                ),
                             ],
                             type="checkbox",
                             id="auto-checkbox",
@@ -1240,8 +1293,14 @@ def render_inspector_panel():
                 with tag.div("flex gap-2"):
                     with tag.button(
                         [
-                            "flex-1 px-3 py-2 bg-green-600 hover:bg-green-700",
-                            "text-white text-sm rounded font-medium transition-colors",
+                            (
+                                "flex-1 px-3 py-2 bg-green-600"
+                                " hover:bg-green-700"
+                            ),
+                            (
+                                "text-white text-sm rounded font-medium"
+                                " transition-colors"
+                            ),
                         ],
                         id="export-browser-btn",
                         onclick="exportVideo()",
@@ -1250,8 +1309,14 @@ def render_inspector_panel():
 
                     with tag.button(
                         [
-                            "flex-1 px-3 py-2 bg-green-600 hover:bg-green-700",
-                            "text-white text-sm rounded font-medium transition-colors",
+                            (
+                                "flex-1 px-3 py-2 bg-green-600"
+                                " hover:bg-green-700"
+                            ),
+                            (
+                                "text-white text-sm rounded font-medium"
+                                " transition-colors"
+                            ),
                         ],
                         id="export-server-btn",
                         onclick="exportVideoServer()",

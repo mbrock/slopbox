@@ -27,7 +27,8 @@ async def generate_image(
     try:
         logger.info(f"Starting image generation for ID: {generation_id}")
         logger.info(
-            f"Using model: {model}, aspect ratio: {aspect_ratio}, style: {style}"
+            f"Using model: {model}, aspect ratio: {aspect_ratio}, style:"
+            f" {style}"
         )
 
         # Set up model inputs

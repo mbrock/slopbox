@@ -254,7 +254,8 @@ class TestVideoSyncRoutesBasic:
 
         # Step 3: Verify job completed successfully
         assert final_status["status"] == "complete", (
-            f"Job failed with error: {final_status.get('error', 'Unknown error')}"
+            "Job failed with error:"
+            f" {final_status.get('error', 'Unknown error')}"
         )
         assert final_status["progress"] == 100
         assert "output_path" in final_status

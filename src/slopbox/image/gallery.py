@@ -86,18 +86,22 @@ def render_sort_options(sort_by, liked_only):
             with tag.div("flex"):
                 # Sort by recency
                 with tag.a(
-                    Styles.sort_button_active
-                    if sort_by == "recency"
-                    else Styles.sort_button,
+                    (
+                        Styles.sort_button_active
+                        if sort_by == "recency"
+                        else Styles.sort_button
+                    ),
                     href=make_gallery_url(1, "recency", liked_only),
                 ):
                     text("Most Recent")
 
                 # Sort by image count
                 with tag.a(
-                    Styles.sort_button_active
-                    if sort_by == "image_count"
-                    else Styles.sort_button,
+                    (
+                        Styles.sort_button_active
+                        if sort_by == "image_count"
+                        else Styles.sort_button
+                    ),
                     href=make_gallery_url(1, "image_count", liked_only),
                 ):
                     text("Most Generated")
@@ -108,9 +112,11 @@ def render_sort_options(sort_by, liked_only):
                 text("Filters:")
             # Liked filter
             with tag.a(
-                Styles.filter_button_active
-                if liked_only
-                else Styles.filter_button,
+                (
+                    Styles.filter_button_active
+                    if liked_only
+                    else Styles.filter_button
+                ),
                 href=make_gallery_url(1, sort_by, not liked_only),
             ):
                 with tag.span("text-sm"):

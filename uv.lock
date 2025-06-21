@@ -946,7 +946,7 @@ wheels = [
 
 [[package]]
 name = "slopbox"
-version = "0.5.1"
+version = "0.6"
 source = { editable = "." }
 dependencies = [
     { name = "aiofiles" },
@@ -977,6 +977,7 @@ dev = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "black" },
     { name = "httpx" },
     { name = "pytest" },
     { name = "ruff" },
@@ -1008,6 +1009,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "black", specifier = ">=25.1.0" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "pytest", specifier = ">=8.3.4" },
     { name = "ruff", specifier = ">=0.9.7" },

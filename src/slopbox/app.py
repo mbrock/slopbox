@@ -380,9 +380,11 @@ async def toggle_like_endpoint(image_uuid: str):
     # Return the updated like indicator
     with tag.div(
         "absolute top-2 right-2 p-2 rounded-full",
-        "bg-amber-100 text-amber-600"
-        if new_liked_status
-        else "bg-white/80 text-neutral-600",
+        (
+            "bg-amber-100 text-amber-600"
+            if new_liked_status
+            else "bg-white/80 text-neutral-600"
+        ),
         "opacity-0 group-hover:opacity-100 transition-opacity",
         "z-20 pointer-events-none",
         id=f"like-indicator-{image_uuid}",
@@ -420,16 +422,14 @@ async def delete_unliked_images():
 
     with conn:
         # First, get all complete images that are not liked
-        cur = conn.execute(
-            """
+        cur = conn.execute("""
             SELECT i.id, i.uuid, i.filepath, i.spec_id
             FROM images_v3 i
             WHERE i.status = 'complete'
             AND NOT EXISTS (
                 SELECT 1 FROM likes WHERE image_uuid = i.uuid
             )
-            """
-        )
+            """)
 
         unliked_images = cur.fetchall()
 
@@ -454,25 +454,21 @@ async def delete_unliked_images():
             deleted_images = len(image_ids)
 
         # Now find and delete empty specs (specs with no images)
-        cur = conn.execute(
-            """
+        cur = conn.execute("""
             DELETE FROM image_specs
             WHERE NOT EXISTS (
                 SELECT 1 FROM images_v3 WHERE spec_id = image_specs.id
             )
-            """
-        )
+            """)
         deleted_specs = cur.rowcount
 
         # Get all filepaths of liked images to know what to keep
-        cur = conn.execute(
-            """
+        cur = conn.execute("""
             SELECT i.filepath
             FROM images_v3 i
             JOIN likes l ON i.uuid = l.image_uuid
             WHERE i.status = 'complete' AND i.filepath IS NOT NULL
-            """
-        )
+            """)
         liked_filepaths = {
             os.path.basename(row[0]) for row in cur.fetchall() if row[0]
         }
