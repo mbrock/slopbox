@@ -78,7 +78,7 @@ def get_random_pair_for_comparison() -> Tuple[
         # Get two random liked images, preferring those with fewer comparisons
         cur = conn.execute("""
             WITH RankedImages AS (
-                SELECT 
+                SELECT
                     i.uuid,
                     COALESCE(r.num_comparisons, 0) as comp_count
                 FROM images_v3 i
@@ -88,7 +88,7 @@ def get_random_pair_for_comparison() -> Tuple[
                 ORDER BY RANDOM() * (1.0 / (COALESCE(r.num_comparisons, 0) + 1))
                 LIMIT 2
             )
-            SELECT 
+            SELECT
                 i.id, i.uuid, i.spec_id, i.filepath, i.status, i.created,
                 s.id, s.prompt, s.model, s.aspect_ratio, s.created
             FROM RankedImages r
@@ -182,7 +182,7 @@ def get_top_rated_images(limit: int = 10) -> List[Tuple[Image, float]]:
     with conn:
         cur = conn.execute(
             """
-            SELECT 
+            SELECT
                 i.id, i.uuid, i.spec_id, i.filepath, i.status, i.created,
                 s.id, s.prompt, s.model, s.aspect_ratio, s.created,
                 r.rating

@@ -23,6 +23,19 @@ def get_image_url(image: Image) -> str:
     return f"/images/{os.path.basename(image.filepath)}"
 
 
+def get_image_container_classes(
+    image, border_class="border border-neutral-500"
+):
+    """Get common styling classes for image containers."""
+    base_classes = ["h-256", "z-10"]
+    base_classes.append(border_class)
+
+    aspect_style = f"aspect-{image.spec.aspect_ratio.replace(':', '/')}"
+    base_classes.append(aspect_style)
+
+    return base_classes
+
+
 def render_image_or_status(image: Image):
     """Render just the image or its status indicator."""
 
@@ -35,24 +48,12 @@ def render_image_or_status(image: Image):
 
 
 def render_pending_image(image):
-    # Calculate aspect ratio style based on the spec
-    ratio_parts = [float(x) for x in image.spec.aspect_ratio.split(":")]
-    aspect_ratio = ratio_parts[0] / ratio_parts[1]
-    # For wide/landscape images, fix the width. For tall/portrait images,
-    # fix the height
-    size_classes = "w-256" if aspect_ratio >= 1 else "h-256"
-    aspect_style = f"aspect-[{image.spec.aspect_ratio.replace(':', '/')}]"
-
-    with tag.div(
-        size_classes,
-        aspect_style,
+    classes = get_image_container_classes(image) + [
         "bg-white",
-        "p-2",
-        "shadow-xl shadow-neutral-500",
-        "border border-neutral-500",
-        "z-10",
         "flex items-center justify-center",
-    ):
+    ]
+
+    with tag.div(*classes):
         attr(
             "hx-get",
             app.url_path_for("check_status", generation_id=image.uuid),
@@ -64,26 +65,24 @@ def render_pending_image(image):
 
 
 def render_complete_image(image: Image):
-    with tag.div(
-        "relative group cursor-pointer",
-        hx_post=app.url_path_for(
-            "toggle_like_endpoint", image_uuid=image.uuid
-        ),
-        hx_target=f"#like-indicator-{image.uuid}",
-        hx_swap="outerHTML",
-    ):
+    border_class = (
+        "border-amber-200 border-4"
+        if image.liked
+        else "border border-neutral-500"
+    )
+
+    with tag.div("cursor-pointer relative group"):
+        attr(
+            "hx-post",
+            app.url_path_for("toggle_like_endpoint", image_uuid=image.uuid),
+        )
+        attr("hx-target", f"#like-indicator-{image.uuid}")
+        attr("hx-swap", "outerHTML")
+
         render_like_affordance(image)
         with tag.img(
-            "max-w-256 max-h-256",
             "object-contain flex-0",
-            "bg-white p-2",
-            "shadow-xl shadow-neutral-500",
-            (
-                "border-amber-200 border-4"
-                if image.liked
-                else "border border-neutral-500"
-            ),
-            "z-10",
+            get_image_container_classes(image, border_class),
             src=get_image_url(image),
             alt=image.spec.prompt if image.spec else "",
         ):
@@ -91,16 +90,12 @@ def render_complete_image(image: Image):
 
 
 def render_error_image(image):
-    with tag.div(
-        "w-256",
-        "aspect-square",
+    classes = get_image_container_classes(image, "border border-red-500") + [
         "bg-white",
-        "p-2",
-        "shadow-xl shadow-neutral-500",
-        "border border-red-500",
-        "z-10",
         "flex items-center justify-center",
-    ):
+    ]
+
+    with tag.div(*classes):
         with tag.span("text-red-500"):
             text("Error")
 

@@ -32,6 +32,22 @@ def render_prompt_form_dropdown(
             render_prompt_form_content(prompt, model, aspect_ratio, style)
 
 
+@html.div("flex flex-col h-full")
+def render_prompt_form_column(
+    prompt: Optional[str] = None,
+    model: Optional[str] = None,
+    aspect_ratio: Optional[str] = None,
+    style: Optional[str] = None,
+):
+    """Render the prompt form as a column layout."""
+    with tag.div("p-4 border-b border-neutral-400"):
+        with tag.h2("text-lg font-semibold text-neutral-800"):
+            text("New Image")
+
+    with tag.div("flex-1 overflow-y-auto"):
+        render_prompt_form_content(prompt, model, aspect_ratio, style)
+
+
 @html.div(id="prompt-form")
 def render_prompt_form_content(
     prompt: Optional[str] = None,

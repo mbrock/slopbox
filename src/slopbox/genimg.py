@@ -141,7 +141,6 @@ async def generate_image(
         # model name
         if "recraft" in model.lower():
             # Use Recraft via OpenAI API
-            provider = ModelProvider.RECRAFT
             # Use the style directly from the form instead of mapping
             style_name = (
                 style
@@ -188,7 +187,6 @@ async def generate_image(
 
         else:
             # Use Replicate for all other models
-            provider = ModelProvider.REPLICATE
 
             # Set up model inputs for Replicate
             model_inputs = {

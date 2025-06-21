@@ -364,7 +364,7 @@ def get_paginated_specs_with_images(
             return []
 
         image_query = """
-            SELECT 
+            SELECT
                 i.id, i.uuid, i.spec_id, i.filepath, i.status, i.created,
                 EXISTS(SELECT 1 FROM likes WHERE image_uuid = i.uuid) as liked
             FROM images_v3 i

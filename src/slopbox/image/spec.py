@@ -11,7 +11,7 @@ from slopbox.ui import Styles
 
 @html.div(
     "flex flex-wrap",
-    "gap-4",
+    "gap-2",
 )
 def render_spec_images(
     spec: ImageSpec, images: List[Image], liked_only: bool = False
@@ -22,12 +22,13 @@ def render_spec_images(
     # Filter liked images if needed
     filtered_images = [img for img in images if not liked_only or img.liked]
 
-    # Show first 4 images
-    for image in filtered_images[:4]:
+    # Show first 8 images
+    initial_count = 8
+    for image in filtered_images[:initial_count]:
         render_image_or_status(image)
 
     # If there are more images, show them in a collapsible section
-    if len(filtered_images) > 4:
+    if len(filtered_images) > initial_count:
         with tag.details("w-full mt-4"):
             with tag.summary(
                 [
@@ -35,17 +36,22 @@ def render_spec_images(
                     "hover:text-neutral-800",
                 ]
             ):
-                text(f"Show {len(filtered_images) - 4} more images...")
+                text(
+                    f"Show {len(filtered_images) - initial_count} more"
+                    " images..."
+                )
             with tag.div("flex flex-wrap gap-4 mt-4"):
-                for image in filtered_images[4:]:
+                for image in filtered_images[initial_count:]:
                     render_image_or_status(image)
 
 
-@html.div("w-full px-2 mb-8 flex flex-col items-start gap-2")
+@html.div("w-full px-2 mb-8 flex flex-row items-start gap-2 snap-start")
 def render_spec_block(
     spec: ImageSpec, images: List[Image], liked_only: bool = False
 ):
     """Render a complete spec block with header and images."""
+    attr("data-spec-block", "true")
+    attr("data-spec-id", str(spec.id))
     render_spec_header(spec)
     render_spec_images(spec, images, liked_only)
 

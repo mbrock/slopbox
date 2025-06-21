@@ -26,6 +26,7 @@ lint:  ## Run linting
 
 format:  ## Format code (Black for line splitting, then Ruff for canonical formatting)
 	uv run black src/ tests/
+	uv run ruff check --fix --unsafe-fixes src/ tests/ || true
 	uv run ruff format src/ tests/
 
 test:  ## Run tests

@@ -6,11 +6,13 @@ from tagflow import attr, html, tag, text
 from slopbox.fastapi import app
 from slopbox.image.spec import render_spec_block
 from slopbox.model import Image, ImageSpec
-from slopbox.prompt.form import render_prompt_form_dropdown
+from slopbox.prompt.form import (
+    render_prompt_form_column,
+)
 from slopbox.ui import Styles
 
 
-@html.div("h-full overflow-y-auto flex-1 flex flex-col items-stretch")
+@html.div("h-full overflow-y-auto flex-1 flex flex-row items-stretch")
 def render_image_gallery(
     specs_with_images: List[Tuple[ImageSpec, List[Image]]],
     current_page: int,
@@ -19,26 +21,39 @@ def render_image_gallery(
     liked_only: bool = False,
 ):
     """Render the image gallery with navigation bar and content."""
-    # Render top navigation bar containing prompt form and gallery controls
+
+    # Left column: Prompt form
     with tag.div(
-        "sticky top-0 z-50",
-        "bg-neutral-200 shadow-md",
-        "flex items-center justify-between",
-        "px-4 py-2 gap-4",
+        "w-128",
+        "flex-shrink-0",
+        "bg-neutral-200 border-r border-neutral-400",
+        "flex flex-col",
     ):
-        with tag.div("flex items-center gap-4"):
-            render_sort_options(sort_by, liked_only)
-            render_slideshow_link()
-            render_delete_unliked_button()
+        render_prompt_form_column()
 
-        render_prompt_form_dropdown()
+    # Right column: Gallery content
+    with tag.div("flex-1 flex flex-col min-w-0"):
+        # Top navigation bar containing gallery controls
+        with tag.div(
+            "sticky top-0 z-50",
+            "bg-neutral-200 shadow-md",
+            "flex items-center justify-between",
+            "px-4 py-2 gap-4",
+        ):
+            with tag.div("flex items-center gap-4"):
+                render_sort_options(sort_by, liked_only)
+                render_slideshow_link()
+                render_delete_unliked_button()
+            render_pagination_controls(
+                current_page, total_pages, sort_by, liked_only
+            )
 
-    with tag.div("p-2", id="gallery-container"):
-        for spec, images in specs_with_images:
-            render_spec_block(spec, images, liked_only)
-
-    # Pagination controls at the bottom
-    render_pagination_controls(current_page, total_pages, sort_by, liked_only)
+        with tag.div(
+            "p-2 flex-1 overflow-y-auto scroll-smooth snap-y snap-mandatory",
+            id="gallery-container",
+        ):
+            for spec, images in specs_with_images:
+                render_spec_block(spec, images, liked_only)
 
 
 def make_gallery_url(page: int, sort_by: str, liked_only: bool) -> str:
@@ -56,7 +71,7 @@ def render_pagination_controls(
     current_page, total_pages, sort_by, liked_only
 ):
     """Render the pagination controls."""
-    with tag.div("flex justify-end gap-4 p-4"):
+    with tag.div("flex justify-end gap-4 px-4"):
         if current_page > 1:
             with tag.a(
                 Styles.pagination_button,
