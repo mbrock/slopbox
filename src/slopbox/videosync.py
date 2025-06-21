@@ -647,21 +647,29 @@ def render_video_sync_content():
         ):
             render_file_upload_section()
 
-        # Main layout: optimized horizontal split
+        # Main layout: vertical with waveforms taking full width
         with tag.div(
-            "flex-1 flex bg-neutral-900",
+            "flex-1 flex flex-col bg-neutral-900",
             id="main-layout",
             style="display: none;",
         ):
-            # Video section - larger
-            with tag.div(
-                "flex-1 flex items-center justify-center bg-black border-r border-neutral-600"
-            ):
-                render_video_player_section()
+            # Top section: small video + controls
+            with tag.div(" flex bg-black border-b border-neutral-600"):
+                # Small video player
+                with tag.div("w-96 flex items-center justify-center"):
+                    render_video_player_section()
 
-            # Inspector panel - wider for better waveforms
-            with tag.div("w-96 bg-neutral-900 flex flex-col"):
-                render_inspector_panel()
+                # Controls section
+                with tag.div("flex-1 bg-neutral-800 p-4"):
+                    render_control_section()
+
+            # Bottom section: full-width waveforms
+            with tag.div("flex-1 bg-neutral-900 p-4"):
+                render_waveform_section()
+
+        # JavaScript
+        with tag.script(src="/static/video-sync.js"):
+            pass
 
 
 def render_file_upload_section():
@@ -716,14 +724,14 @@ def render_file_upload_section():
 
 
 def render_video_player_section():
-    """Render the video player optimized for space."""
-    with tag.div("p-6"):
+    """Render the compact video player."""
+    with tag.div("p-4"):
         with tag.video(
-            "max-w-full max-h-full object-contain shadow-lg",
+            "w-full h-full object-contain shadow-lg rounded",
             id="video-player",
             controls=True,
             preload="metadata",
-            style="max-height: 85vh;",
+            style="max-height: 280px;",
         ):
             text("Your browser does not support the video tag.")
 
@@ -732,6 +740,234 @@ def render_video_player_section():
         text("Your browser does not support the audio tag.")
     with tag.audio("hidden", id="clean-audio-player", preload="metadata"):
         text("Your browser does not support the audio tag.")
+
+
+def render_control_section():
+    """Render the compact controls section in the top right."""
+    with tag.div("flex flex-col h-full justify-between p-3 bg-neutral-800"):
+        # Compact sync controls
+        with tag.div("space-y-3"):
+            # Header with sync status
+            with tag.div("flex items-center justify-between"):
+                with tag.div("text-sm font-semibold text-white"):
+                    text("🎯 Sync")
+                with tag.div(
+                    "text-lg text-blue-400 font-mono font-bold",
+                    id="sync-status",
+                ):
+                    text("0.00s")
+
+            # Compact offset control - just the visual indicator, no input
+            with tag.div("relative"):
+                with tag.div(
+                    "w-full h-3 bg-neutral-700 rounded-full relative cursor-pointer",
+                    id="offset-slider",
+                ):
+                    with tag.div(
+                        "absolute top-0 left-1/2 transform -translate-x-1/2 w-px h-3 bg-neutral-500"
+                    ):
+                        pass
+                    with tag.div(
+                        "absolute top-0 w-4 h-3 bg-blue-500 rounded-full transform -translate-x-1/2 transition-all duration-150 shadow-lg",
+                        id="offset-indicator",
+                        style="left: 50%",
+                    ):
+                        pass
+                with tag.div(
+                    "flex justify-between text-xs text-neutral-400 mt-1"
+                ):
+                    with tag.span():
+                        text("-5s")
+                    with tag.span("text-center"):
+                        text("0s")
+                    with tag.span():
+                        text("+5s")
+
+            # Audio mix - more compact
+            with tag.div():
+                with tag.div("flex justify-between items-center mb-1"):
+                    with tag.span("text-xs text-red-400 font-medium"):
+                        text("Original")
+                    with tag.span("text-xs text-blue-400 font-medium"):
+                        text("Clean")
+                with tag.input(
+                    "w-full h-2 bg-neutral-700 rounded-lg appearance-none cursor-pointer",
+                    type="range",
+                    id="crossfader",
+                    min="0",
+                    max="100",
+                    value="50",
+                    style="background: linear-gradient(to right, #ef4444 0%, #ef4444 50%, #3b82f6 50%, #3b82f6 100%)",
+                ):
+                    pass
+
+            # Compact toggles
+            with tag.div("flex items-center justify-between text-xs"):
+                with tag.label("flex items-center gap-1 cursor-pointer"):
+                    with tag.input(
+                        "w-3 h-3 text-blue-600 bg-neutral-700 border-neutral-600 rounded",
+                        type="checkbox",
+                        id="basic-mode-toggle",
+                    ):
+                        pass
+                    with tag.span("text-neutral-300"):
+                        text("Basic")
+
+                with tag.label("flex items-center gap-1 cursor-pointer"):
+                    with tag.input(
+                        "w-3 h-3 text-blue-600 bg-neutral-700 border-neutral-600 rounded",
+                        type="checkbox",
+                        id="clip-video-checkbox",
+                    ):
+                        pass
+                    with tag.span("text-neutral-300"):
+                        text("Clip")
+
+            # Enhancement gain - compact
+            with tag.div():
+                with tag.div("flex items-center justify-between mb-1"):
+                    with tag.label("text-xs text-neutral-300"):
+                        text("Enhancement")
+                    with tag.span(
+                        "text-xs text-blue-400 font-mono", id="gain-value"
+                    ):
+                        text("1.0x")
+                with tag.input(
+                    "w-full h-1 bg-neutral-700 rounded-lg appearance-none cursor-pointer",
+                    type="range",
+                    id="enhancement-gain",
+                    min="0.1",
+                    max="3.0",
+                    step="0.1",
+                    value="1.0",
+                ):
+                    pass
+
+            # Blend mode selector - compact
+            with tag.div():
+                with tag.div("flex items-center justify-between mb-1"):
+                    with tag.label("text-xs text-neutral-300"):
+                        text("Blend Mode")
+                with tag.select(
+                    "w-full text-xs bg-neutral-700 border border-neutral-600 rounded text-white",
+                    id="blend-mode-select",
+                ):
+                    with tag.option(value="normal", selected=True):
+                        text("Normal")
+                    with tag.option(value="multiply"):
+                        text("Multiply")
+                    with tag.option(value="screen"):
+                        text("Screen")
+                    with tag.option(value="overlay"):
+                        text("Overlay")
+                    with tag.option(value="difference"):
+                        text("Difference")
+                    with tag.option(value="lighter"):
+                        text("Lighter")
+                    with tag.option(value="darken"):
+                        text("Darken")
+                    with tag.option(value="lighten"):
+                        text("Lighten")
+
+        # Compact playback controls
+        with tag.div("space-y-2"):
+            with tag.div("flex gap-1"):
+                with tag.button(
+                    "flex-1 px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded font-medium transition-colors",
+                    id="play-pause-btn",
+                    onclick="togglePlayback()",
+                ):
+                    text("▶ Play")
+                with tag.button(
+                    "px-2 py-1 bg-neutral-700 hover:bg-neutral-600 text-white text-xs rounded transition-colors",
+                    onclick="seekToStart()",
+                ):
+                    text("⏮")
+
+            with tag.button(
+                "w-full px-2 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded transition-colors",
+                id="export-server-btn",
+                onclick="exportVideoServer()",
+            ):
+                text("🎬 Export")
+
+            with tag.div("text-xs text-green-400 mb-2", id="export-status"):
+                text("Ready when synced.")
+
+        # Hidden input for programmatic updates
+        with tag.input(
+            "hidden",
+            type="number",
+            id="audio-offset",
+            step="0.01",
+            value="0",
+        ):
+            pass
+
+
+def render_waveform_section():
+    """Render the full-width waveforms section."""
+    with tag.div("space-y-6"):
+        with tag.div("text-xl font-semibold text-white mb-4"):
+            text("🎵 Audio Waveforms")
+
+        # Waveforms grid - 2 columns for individual, full width for superposition
+        with tag.div("grid grid-cols-2 gap-6 mb-6"):
+            # Video audio waveform
+            with tag.div("hidden"):
+                with tag.div("flex items-center justify-between mb-2"):
+                    with tag.div("text-sm font-medium text-neutral-300"):
+                        text("Video Audio")
+                    with tag.div("text-xs text-red-400 font-mono"):
+                        text("Original")
+                with tag.div("relative"):
+                    with tag.canvas(
+                        "w-full h-40 border border-neutral-600 rounded bg-neutral-800",
+                        id="original-waveform",
+                        width="1200",
+                        height="160",
+                    ):
+                        pass
+
+            # Clean audio waveform
+            with tag.div("hidden"):
+                with tag.div("flex items-center justify-between mb-2"):
+                    with tag.div("text-sm font-medium text-neutral-300"):
+                        text("Clean Audio")
+                    with tag.div("text-xs text-blue-400 font-mono"):
+                        text("Replacement")
+                with tag.div("relative"):
+                    with tag.canvas(
+                        "w-full h-40 border border-neutral-600 rounded bg-neutral-800",
+                        id="clean-waveform",
+                        width="1200",
+                        height="160",
+                    ):
+                        pass
+
+        # Superposition waveform - full width
+        with tag.div():
+            with tag.div("flex items-center justify-between mb-2"):
+                with tag.div("text-lg font-medium text-neutral-300"):
+                    text("Alignment View")
+                with tag.div("text-sm text-yellow-400 font-mono"):
+                    text("Vertical Stack • Original | Clean | Blend Mode")
+            with tag.div("relative"):
+                with tag.canvas(
+                    "w-full h-96 border border-neutral-600 rounded bg-neutral-900",
+                    id="superposition-waveform",
+                    width="2400",
+                    height="192",
+                ):
+                    pass
+
+                # Playhead indicator spans all waveforms
+                with tag.div(
+                    "absolute w-0.5 bg-yellow-400 opacity-90 pointer-events-none z-10",
+                    id="playhead",
+                    style="top: -348px; height: 628px; left: 0px; transition: left 0.1s ease-out;",
+                ):
+                    pass
 
 
 def render_inspector_panel():
@@ -754,10 +990,10 @@ def render_inspector_panel():
                             text("Original")
                     with tag.div("relative"):
                         with tag.canvas(
-                            "w-full h-20 border border-neutral-600 rounded bg-neutral-800",
+                            "w-full h-32 border border-neutral-600 rounded bg-neutral-800",
                             id="original-waveform",
-                            width="320",
-                            height="80",
+                            width="800",
+                            height="128",
                         ):
                             pass
 
@@ -770,10 +1006,10 @@ def render_inspector_panel():
                             text("Replacement")
                     with tag.div("relative"):
                         with tag.canvas(
-                            "w-full h-20 border border-neutral-600 rounded bg-neutral-800",
+                            "w-full h-32 border border-neutral-600 rounded bg-neutral-800",
                             id="clean-waveform",
-                            width="320",
-                            height="80",
+                            width="800",
+                            height="128",
                         ):
                             pass
 
@@ -781,7 +1017,23 @@ def render_inspector_panel():
                         with tag.div(
                             "absolute w-0.5 bg-yellow-400 opacity-90 pointer-events-none z-10",
                             id="playhead",
-                            style="top: -88px; height: 168px; left: 0px; transition: left 0.1s ease-out;",
+                            style="top: -168px; height: 328px; left: 0px; transition: left 0.1s ease-out;",
+                        ):
+                            pass
+
+                # Superposition waveform for alignment
+                with tag.div("mt-4"):
+                    with tag.div("flex items-center justify-between mb-2"):
+                        with tag.div("text-sm font-medium text-neutral-300"):
+                            text("Alignment View")
+                        with tag.div("text-xs text-yellow-400 font-mono"):
+                            text("Superposition")
+                    with tag.div("relative"):
+                        with tag.canvas(
+                            "w-full h-32 border border-neutral-600 rounded bg-neutral-900",
+                            id="superposition-waveform",
+                            width="800",
+                            height="128",
                         ):
                             pass
 
@@ -1023,7 +1275,3 @@ def render_inspector_panel():
                         id="export-progress-text",
                     ):
                         text("Starting export...")
-
-        # JavaScript
-        with tag.script(src="/static/video-sync.js"):
-            pass
